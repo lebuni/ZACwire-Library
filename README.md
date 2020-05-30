@@ -8,3 +8,5 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 `.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a noisy signal, it returns 222
 
 `.end()` stops the interrupt routine for time critical tasks
+
+TODO: Save space with c++ templates
