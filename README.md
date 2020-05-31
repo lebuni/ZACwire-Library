@@ -3,7 +3,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 `ZACwire<uint8_t Pin> obj(int Sensor)` tells the library which input pin (eg. 2) and type of sensor (eg. 306) it should use
 
-`.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 100ms before the first .getTemp(). Otherwise it'll be called inside getTemp() automatically.
+`.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
 
 `.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a noisy signal, it returns 222
 
