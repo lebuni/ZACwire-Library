@@ -33,7 +33,7 @@ class ZACwire {
 	float getTemp() {	    //gives back temperature in °C
 		byte parity1 = 0, parity2 = 0, timeout = 10;
 		while (BitCounter && --timeout) delay(1);
-		noInterrupts();  							//no ISRs because tempValue might change during reading
+		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
 		byte newWindow = (ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9;
