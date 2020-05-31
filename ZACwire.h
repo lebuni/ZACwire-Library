@@ -10,7 +10,7 @@
 
 #include "Arduino.h"
 
-template <byte pin>
+template <uint8_t pin>
 class ZACwire {
 	
   public:
@@ -92,19 +92,19 @@ class ZACwire {
   	static bool ByteNr;
 };
 
-template<byte pin>
+template<uint8_t pin>
 int ZACwire<pin>::isrPin;
-template<byte pin>
+template<uint8_t pin>
 volatile byte ZACwire<pin>::BitCounter;
-template<byte pin>
+template<uint8_t pin>
 volatile unsigned long ZACwire<pin>::ByteTime;
-template<byte pin>
+template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::tempValue[2];
-template<byte pin>
+template<uint8_t pin>
 unsigned long ZACwire<pin>::microtime;
-template<byte pin>
+template<uint8_t pin>
 byte ZACwire<pin>::window;
-template<byte pin>
+template<uint8_t pin>
 bool ZACwire<pin>::ByteNr;
 
 #endif
