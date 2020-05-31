@@ -35,5 +35,6 @@ void loop() {
     Serial.print("Temp: ");
     Serial.println(Input);
   }
+  delay(100);
 }
 ```
