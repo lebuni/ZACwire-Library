@@ -7,9 +7,9 @@
 #include <ZACwire.h>
 
 
-ZACwire TSIC306(2, 306);		// set pin "2" to receive signal from the TSIC "306"
+ZACwire<2> TSIC306(306);		// set pin "2" to receive signal from the TSIC "306"
 
-ZACwire TSIC506(30, 506);		// set pin "30" as INPUT to receive signal from the TSIC "506"
+ZACwire<10> TSIC506(506);		// set pin "10" as INPUT to receive signal from the TSIC "506"
 
 
 
