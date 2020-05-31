@@ -13,7 +13,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 ```c++
 #include <ZACwire.h>
 
-ZACwire<2> Sensor1(306);		// set pin "2" to receive signal from the TSic "306"
+ZACwire<2> Sensor(306);		// set pin "2" to receive signal from the TSic "306"
 
 void setup() {
   Serial.begin(500000);
