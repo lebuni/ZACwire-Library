@@ -24,7 +24,7 @@ class ZACwire {
 	  pinMode(pin, INPUT);
 	  window = 117;
 	  microtime = micros();
-	  if (!pulseInLong(pin, HIGH)) return false;
+	  if (!pulseInLong(pin, LOW)) return false;
 	  isrPin = digitalPinToInterrupt(pin);
 	  if (isrPin == -1) return false;
 	  attachInterrupt(isrPin, read, RISING);
