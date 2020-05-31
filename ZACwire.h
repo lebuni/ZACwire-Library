@@ -1,94 +1,111 @@
 /*
-	ZACwire - Library for reading temperature sensors TSIC 206/306/506	
-	Makes use of interrupt pins
+	ZACwire - Library for reading temperature sensors TSIC 206/306/506
+	This arduino library uses interrupts and one should use noInterrupts() or ZACwire::end() before time critical tasks. Also this library won't work if ISRs are deactivated.
+	
 	created by Adrian Immer
 */
+
+
 #ifndef ZACwire_h
 #define ZACwire_h
 
 #include "Arduino.h"
 
-
+template <byte pin>
 class ZACwire {
+	
   public:
-	ZACwire(byte pin, int Sensortype = 306);
-    bool begin();		//start reading sensor, needs to be called 100ms before the first getTemp()
-    float getTemp();	//gives back temperature in °C
-	void end();			//stop reading -> for time critical tasks
-  private:
-	void read();
-	int isrPin;
-	int _Sensortype;
-	byte _pin;
-	volatile byte BitCounter;
-	volatile unsigned long ByteTime;
-	volatile uint16_t tempValue[2];
-	unsigned long microtime;
-	byte window = 117;
-	bool ByteNr;
-	static ZACwire* objekt[60];
-	static void attacher0();
-	static void attacher1();
-	static void attacher2();
-	static void attacher3();
-	static void attacher4();
-	static void attacher5();
-	static void attacher6();
-	static void attacher7();
-	static void attacher8();
-	static void attacher9();
-	static void attacher10();
-	static void attacher11();
-	static void attacher12();
-	static void attacher13();
-	static void attacher14();
-	static void attacher15();
-	static void attacher16();
-	static void attacher17();
-	static void attacher18();
-	static void attacher19();
-	static void attacher20();
-	static void attacher21();
-	static void attacher22();
-	static void attacher23();
-	static void attacher24();
-	static void attacher25();
-	static void attacher26();
-	static void attacher27();
-	static void attacher28();
-	static void attacher29();
-	static void attacher30();
-	static void attacher31();
-	static void attacher32();
-	static void attacher33();
-	static void attacher34();
-	static void attacher35();
-	static void attacher36();
-	static void attacher37();
-	static void attacher38();
-	static void attacher39();
-	static void attacher40();
-	static void attacher41();
-	static void attacher42();
-	static void attacher43();
-	static void attacher44();
-	static void attacher45();
-	static void attacher46();
-	static void attacher47();
-	static void attacher48();
-	static void attacher49();
-	static void attacher50();
-	static void attacher51();
-	static void attacher52();
-	static void attacher53();
-	static void attacher54();
-	static void attacher55();
-	static void attacher56();
-	static void attacher57();
-	static void attacher58();
-	static void attacher59();
+  
+  	ZACwire(int Sensortype = 306){
+  		_Sensortype = Sensortype;
+  	}
+	
+    bool begin() {		//start reading sensor, needs to be called 100ms before the first getTemp()
+	  pinMode(pin, INPUT);
+	  window = 117;
+	  microtime = micros();
+	  if (!pulseInLong(pin, HIGH)) return false;
+	  isrPin = digitalPinToInterrupt(pin);
+	  if (isrPin == -1) return false;
+	  attachInterrupt(isrPin, read, RISING);
+	  return true;
+  	}
+  
+	float getTemp() {	    //gives back temperature in °C
+		byte parity1 = 0, parity2 = 0, timeout = 10;
+		while (BitCounter && --timeout) delay(1);
+		noInterrupts();  							//no ISRs because tempValue might change during reading
+		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
+		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
+		byte newWindow = (ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9;
+		if (abs(window-newWindow) < 20) window += (newWindow >> 3) - (window >> 3);	//adjust window time, which varies with rising temperature
+		interrupts();
+		for (byte i = 0; i < 9; ++i) {
+		  if (tempHigh & (1 << i)) ++parity1;
+		  if (tempLow & (1 << i)) ++parity2;
+		}
+		if (timeout && tempHigh | tempLow && ~(parity1 | parity2) & 1) {       // check for errors
+			tempHigh >>= 1;               // delete parity bits
+			tempLow >>= 1;
+			tempLow += tempHigh << 8;	//joints high and low significant figures
+			if (_Sensortype < 400) return (float(tempLow * 250L >> 8) - 499) / 10;	//calculates °C
+			else return (float(tempLow * 175L >> 9) - 99) / 10;
+		}
+		else return 222;	//set to 222 if reading failed
+  	}
+  
+  	void end() {			//stop reading -> for time critical tasks
+  		for (byte timeout = 10; BitCounter && timeout; --timeout) delay(1);
+  		detachInterrupt(isrPin);
+  	}
 
+  private:
+  
+  	static void ICACHE_RAM_ATTR read() {
+  		microtime = micros() - microtime;
+  		if (microtime > 1000) {		  //begin reading
+  			ByteTime = micros();
+  			BitCounter = 1;
+  			ByteNr = tempValue[0] = tempValue[1] = 0;
+  		}
+  		if (BitCounter) {		//gets called with every new bit on rising edge
+  			if (++BitCounter + (ByteNr * 2) == 12) {
+  				BitCounter = !ByteNr;
+  				if (!ByteNr) {			//after stop bit
+  					microtime += window << 1;
+  					ByteNr = 1;
+  					ByteTime = micros() - ByteTime;
+  				}
+  			}
+  			tempValue[ByteNr] <<= 1;
+  			if (microtime > window + 24);		//Logic 0
+  			else if (microtime < window - 24 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
+  		}
+  		microtime = micros();
+  	}
+  	static int isrPin;
+  	int _Sensortype;
+  	static volatile byte BitCounter;
+  	static volatile unsigned long ByteTime;
+  	static volatile uint16_t tempValue[2];
+  	static unsigned long microtime;
+  	static byte window;
+  	static bool ByteNr;
 };
 
+template<byte pin>
+int ZACwire<pin>::isrPin;
+template<byte pin>
+volatile byte ZACwire<pin>::BitCounter;
+template<byte pin>
+volatile unsigned long ZACwire<pin>::ByteTime;
+template<byte pin>
+volatile uint16_t ZACwire<pin>::tempValue[2];
+template<byte pin>
+unsigned long ZACwire<pin>::microtime;
+template<byte pin>
+byte ZACwire<pin>::window;
+template<byte pin>
+bool ZACwire<pin>::ByteNr;
 
 #endif
