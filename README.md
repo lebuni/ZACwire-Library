@@ -9,3 +9,30 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 `.end()` stops the interrupt routine for time critical tasks
 
+## Example
+```c++
+#include <ZACwire.h>
+
+ZACwire<2> Sensor1(306);		// set pin "2" to receive signal from the TSic "306"
+
+void setup() {
+  Serial.begin(500000);
+  
+  if (Sensor.begin() == TRUE) {     //check if a sensor is connected to the pin
+    Serial.println("Signal found on pin 2");
+  }
+}
+
+void loop() {
+  float Input = Sensor.getTemp();     //get the Temperature in °C
+  
+  if (Input == 222) {
+    Serial.println("Reading failed");
+  }
+  
+  else {
+    Serial.print("Temp: ");
+    Serial.println(Input);
+  }
+}
+```
