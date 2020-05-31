@@ -68,13 +68,14 @@ class ZACwire {
   			ByteNr = tempValue[0] = tempValue[1] = 0;
   		}
   		if (BitCounter) {		//gets called with every new bit on rising edge
-  			if (++BitCounter + (ByteNr * 2) == 12) {
-  				BitCounter = !ByteNr;
+  			if (++BitCounter == 12) {
   				if (!ByteNr) {			//after stop bit
-  					microtime += window << 1;
-  					ByteNr = 1;
   					ByteTime = micros() - ByteTime;
+					microtime += window << 1;
+  					ByteNr = 1;  					
+					BitCounter = 3;
   				}
+				else BitCounter = 0;		//end reading cycle
   			}
   			tempValue[ByteNr] <<= 1;
   			if (microtime > window + 24);		//Logic 0
