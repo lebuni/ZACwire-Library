@@ -1,8 +1,7 @@
 /*
 	ZACwire - Library for reading temperature sensors TSIC 206/306/506
-	This arduino library uses interrupts and one should use noInterrupts() or ZACwire::end() before time critical tasks. Also this library won't work if ISRs are deactivated.
 	
-	created by Adrian Immer
+	created by Adrian Immer in 2020
 */
 
 
