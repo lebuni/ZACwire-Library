@@ -19,7 +19,7 @@ class ZACwire {
   		_Sensortype = Sensortype;
   	}
 	
-    bool begin() {		//start reading sensor, needs to be called 100ms before the first getTemp()
+    	bool begin() {		//start reading sensor, needs to be called 100ms before the first getTemp()
 	  pinMode(pin, INPUT);
 	  window = 117;
 	  microtime = micros();
@@ -31,6 +31,7 @@ class ZACwire {
   	}
   
 	float getTemp() {	    //gives back temperature in °C
+		if (!window) begin();
 		byte parity1 = 0, parity2 = 0, timeout = 10;
 		while (BitCounter && --timeout) delay(1);
 		noInterrupts();  				//no ISRs because tempValue might change during reading
