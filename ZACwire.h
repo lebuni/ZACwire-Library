@@ -31,7 +31,7 @@ class ZACwire {
   	}
   
 	float getTemp() {	    //gives back temperature in °C
-		if (!window) {
+		if (!window) {		//check if begin() was already called
 			begin();
 			delay(150);
 		}
