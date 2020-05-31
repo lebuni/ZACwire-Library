@@ -21,6 +21,7 @@ void setup() {
   if (Sensor.begin() == TRUE) {     //check if a sensor is connected to the pin
     Serial.println("Signal found on pin 2");
   }
+  delay(120);
 }
 
 void loop() {
