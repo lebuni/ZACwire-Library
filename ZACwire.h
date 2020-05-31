@@ -31,7 +31,10 @@ class ZACwire {
   	}
   
 	float getTemp() {	    //gives back temperature in °C
-		if (!window) begin();
+		if (!window) {
+			begin();
+			delay(150);
+		}
 		byte parity1 = 0, parity2 = 0, timeout = 10;
 		while (BitCounter && --timeout) delay(1);
 		noInterrupts();  				//no ISRs because tempValue might change during reading
