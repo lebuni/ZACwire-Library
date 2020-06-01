@@ -17,6 +17,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 - higher accuracy (0.1°C offset corrected)
 - simple use
 
+
 ## Example
 ```c++
 #include <ZACwire.h>
