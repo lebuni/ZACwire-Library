@@ -84,7 +84,7 @@ class ZACwire {
   		}
   		microtime = micros();
   	}
-  	static int isrPin;
+  	int isrPin;
   	int _Sensortype;
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
@@ -94,8 +94,6 @@ class ZACwire {
   	static bool ByteNr;
 };
 
-template<uint8_t pin>
-int ZACwire<pin>::isrPin;
 template<uint8_t pin>
 volatile byte ZACwire<pin>::BitCounter;
 template<uint8_t pin>
