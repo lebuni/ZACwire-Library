@@ -13,9 +13,13 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 - saves a lot of controller time, because no delay() is used and calculations are done by bit manipulation
 - low memory consumption
 - misreading rate lower than 0.03%
-- reading a lot of TSic simultaniously made possible
+- reading an unlimited number of TSic simultaneously
 - higher accuracy (0.1°C offset corrected)
 - simple use
+
+
+
+
 
 
 ## Example
