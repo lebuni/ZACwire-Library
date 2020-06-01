@@ -16,9 +16,9 @@ class ZACwire {
   		_Sensortype = Sensortype;
   	}
 	
-    	bool begin() {		//start reading sensor, needs to be called 100ms before the first getTemp()
+	bool begin() {			//start reading sensor, needs to be called 100ms before the first getTemp()
 	  pinMode(pin, INPUT);
-	  window = 117;
+	  bitWindow = 117;		//bitWindow is twice the Tstrobe
 	  microtime = micros();
 	  if (!pulseInLong(pin, LOW)) return false;
 	  isrPin = digitalPinToInterrupt(pin);
@@ -27,8 +27,8 @@ class ZACwire {
 	  return true;
   	}
   
-	float getTemp() {	    //gives back temperature in °C
-		if (!window) {		//check if begin() was already called
+	float getTemp() {	    	//gives back temperature in °C
+		if (!bitWindow) {	//check if begin() was already called
 			begin();
 			delay(150);
 		}
@@ -37,17 +37,17 @@ class ZACwire {
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
-		byte newWindow = (ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9;
-		if (abs(window-newWindow) < 20) window += (newWindow >> 3) - (window >> 3);	//adjust window time, which varies with rising temperature
+		byte newBitWindow = (ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9;
+		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		interrupts();
 		for (byte i = 0; i < 9; ++i) {
 		  if (tempHigh & (1 << i)) ++parity1;
 		  if (tempLow & (1 << i)) ++parity2;
 		}
-		if (timeout && tempHigh | tempLow && ~(parity1 | parity2) & 1) {       // check for errors
-			tempHigh >>= 1;               // delete parity bits
+		if (timeout && tempHigh | tempLow && ~(parity1 | parity2) & 1) {       // check for failure
+			tempHigh >>= 1;               	// delete parity bits
 			tempLow >>= 1;
-			tempLow += tempHigh << 8;	//joints high and low significant figures
+			tempLow += tempHigh << 8;		//joints high and low significant figures
 			if (_Sensortype < 400) return (float(tempLow * 250L >> 8) - 499) / 10;	//calculates °C
 			else return (float(tempLow * 175L >> 9) - 99) / 10;
 		}
@@ -61,36 +61,36 @@ class ZACwire {
 
   private:
   
-  	static void ICACHE_RAM_ATTR read() {
-  		microtime = micros() - microtime;
-  		if (microtime > 1000) {		  //begin reading
-  			ByteTime = micros();
+  	static void ICACHE_RAM_ATTR read() {	//gets called with every rising edge
+  		microtime = micros() - microtime;	//measure time to previous rising edge
+  		if (microtime > 1000) {		  		//if last reading a long time ago -> begin new reading cycle
+  			ByteTime = micros();			//for measuring Tstrobe/bitWindow
   			BitCounter = 1;
   			ByteNr = tempValue[0] = tempValue[1] = 0;
   		}
-  		if (BitCounter) {		//gets called with every new bit on rising edge
+  		if (BitCounter) {
   			if (++BitCounter == 12) {
   				if (!ByteNr) {			//after stop bit
   					ByteTime = micros() - ByteTime;
-					microtime += window << 1;
+					microtime += bitWindow << 1;
   					ByteNr = 1;  					
 					BitCounter = 3;
   				}
 				else BitCounter = 0;		//end reading cycle
   			}
   			tempValue[ByteNr] <<= 1;
-  			if (microtime > window + 24);		//Logic 0
-  			else if (microtime < window - 24 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
+  			if (microtime > bitWindow + 24);		//Logic 0
+  			else if (microtime < bitWindow - 24 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
   		}
   		microtime = micros();
   	}
   	int isrPin;
-  	int _Sensortype;
+  	int _Sensortype;					//either 206, 306 or 506
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
   	static volatile uint16_t tempValue[2];
   	static unsigned long microtime;
-  	static byte window;
+  	static byte bitWindow;
   	static bool ByteNr;
 };
 
@@ -103,7 +103,7 @@ volatile uint16_t ZACwire<pin>::tempValue[2];
 template<uint8_t pin>
 unsigned long ZACwire<pin>::microtime;
 template<uint8_t pin>
-byte ZACwire<pin>::window;
+byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
 bool ZACwire<pin>::ByteNr;
 
