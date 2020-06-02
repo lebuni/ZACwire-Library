@@ -1,5 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
+	v1.0.2 stable
 */
 
 #ifndef ZACwire_h
@@ -33,7 +34,7 @@ class ZACwire {
 			delay(150);
 		}
 		byte parity1 = 0, parity2 = 0, timeout = 10;
-		while (BitCounter && --timeout) delay(1);
+		while (BitCounter != 20 && --timeout) delay(1);
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
@@ -55,36 +56,29 @@ class ZACwire {
   	}
   
   	void end() {			//stop reading -> for time critical tasks
-  		for (byte timeout = 10; BitCounter && timeout; --timeout) delay(1);
+  		for (byte timeout = 10; BitCounter != 20 && timeout; --timeout) delay(1);
   		detachInterrupt(isrPin);
   	}
 
   private:
   
-  	static void ICACHE_RAM_ATTR read() {	//gets called with every rising edge
+  	static void ICACHE_RAM_ATTR read() {			//gets called with every rising edge
 		unsigned long microtime = micros();
   		deltaMicrotime = microtime - deltaMicrotime;	//measure time to previous rising edge
-  		if (deltaMicrotime > 1000) {		  		//if last reading a long time ago -> begin new reading cycle
+  		if (deltaMicrotime > 1000) {		  	//if last reading a long time ago -> begin new reading cycle
   			ByteTime = microtime;			//for measuring Tstrobe/bitWindow
-  			BitCounter = 1;
-  			ByteNr = tempValue[0] = tempValue[1] = 0;
+  			BitCounter = ByteNr = tempValue[0] = tempValue[1] = 0;
   		}
-  		if (BitCounter) {
-  			if (++BitCounter == 12) {
-  				if (!ByteNr) {			//after stop bit
-  					ByteTime = microtime - ByteTime;
-					deltaMicrotime = 200;
-  					ByteNr = 1;  					
-					BitCounter = 3;
-  				}
-				else BitCounter = 0;		//end reading cycle
-  			}
-  			tempValue[ByteNr] <<= 1;
-  			if (deltaMicrotime > bitWindow);		//Logic 0
-  			else if (deltaMicrotime < bitWindow - 30 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
-  		}
+		if (++BitCounter == 11 && !ByteNr) {		//after stop bit
+			ByteTime = microtime - ByteTime;
+			ByteNr = 1;
+		}
+		tempValue[ByteNr] <<= 1;
+		if (deltaMicrotime > bitWindow);		//Logic 0
+		else if (deltaMicrotime < bitWindow - 27 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
   		deltaMicrotime = microtime;
   	}
+	
   	int isrPin;
   	int _Sensortype;					//either 206, 306 or 506
   	static volatile byte BitCounter;
