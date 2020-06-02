@@ -56,7 +56,7 @@ class ZACwire {
   	}
   
   	void end() {			//stop reading
-  		for (byte timeout = 10; BitCounter != 20 && timeout; --timeout) delay(1);
+  		for (byte timeout = 4; BitCounter != 20 && timeout; --timeout) delay(1);
   		detachInterrupt(isrPin);
   	}
 
