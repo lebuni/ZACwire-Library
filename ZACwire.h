@@ -55,7 +55,7 @@ class ZACwire {
 		else return 222;	//set to 222 if reading failed
   	}
   
-  	void end() {			//stop reading -> for time critical tasks
+  	void end() {			//stop reading
   		for (byte timeout = 10; BitCounter != 20 && timeout; --timeout) delay(1);
   		detachInterrupt(isrPin);
   	}
