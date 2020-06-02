@@ -74,8 +74,8 @@ class ZACwire {
 			ByteNr = 1;
 		}
 		tempValue[ByteNr] <<= 1;
-		if (deltaMicrotime > bitWindow);		//Logic 0
-		else if (deltaMicrotime < bitWindow - 27 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
+		if (deltaMicrotime > bitWindow + 5);		//Logic 0
+		else if (deltaMicrotime < bitWindow - 28 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
   		deltaMicrotime = microtime;
   	}
 	
