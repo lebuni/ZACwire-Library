@@ -19,7 +19,7 @@ class ZACwire {
 	
 	bool begin() {			//start reading sensor, needs to be called 100ms before the first getTemp()
 	  pinMode(pin, INPUT);
-	  bitWindow = 117;		//bitWindow is twice the Tstrobe
+	  bitWindow = 120;		//bitWindow is twice the Tstrobe
 	  deltaMicrotime = micros();
 	  if (!pulseInLong(pin, LOW)) return false;
 	  isrPin = digitalPinToInterrupt(pin);
@@ -31,14 +31,14 @@ class ZACwire {
 	float getTemp() {	    	//gives back temperature in °C
 		if (!bitWindow) {	//check if begin() was already called
 			begin();
-			delay(150);
+			delay(110);
 		}
 		byte parity1 = 0, parity2 = 0, timeout = 10;
 		while (BitCounter != 20 && --timeout) delay(1);
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
-		byte newBitWindow = (ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9;
+		byte newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 5;
 		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		interrupts();
 		for (byte i = 0; i < 9; ++i) {
@@ -74,8 +74,8 @@ class ZACwire {
 			ByteNr = 1;
 		}
 		tempValue[ByteNr] <<= 1;
-		if (deltaMicrotime > bitWindow + 5);		//Logic 0
-		else if (deltaMicrotime < bitWindow - 28 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
+		if (deltaMicrotime > bitWindow);		//Logic 0
+		else if (deltaMicrotime < bitWindow - 33 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
   		deltaMicrotime = microtime;
   	}
 	
