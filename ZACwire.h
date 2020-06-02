@@ -38,7 +38,7 @@ class ZACwire {
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
-		byte newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 7;
+		byte newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;
 		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		interrupts();
 		for (byte i = 0; i < 9; ++i) {
@@ -75,7 +75,7 @@ class ZACwire {
 		}
 		tempValue[ByteNr] <<= 1;
 		if (deltaMicrotime > bitWindow);		//Logic 0
-		else if (deltaMicrotime < bitWindow - 35 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
+		else if (deltaMicrotime < bitWindow - 40 || tempValue[ByteNr] & 2) tempValue[ByteNr] |= 1;	//Logic 1
   		deltaMicrotime = microtime;
   	}
 	
