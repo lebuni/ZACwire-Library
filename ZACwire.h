@@ -33,7 +33,7 @@ class ZACwire {
 			begin();
 			delay(110);
 		}
-		byte parity1 = 0, parity2 = 0, timeout = 10;
+		byte parity1 = 0, parity2 = 0, timeout = 4;
 		while (BitCounter != 20 && --timeout) delay(1);
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
