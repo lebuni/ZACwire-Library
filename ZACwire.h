@@ -39,8 +39,8 @@ class ZACwire {
 		uint16_t tempHigh = tempValue[0];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1];		//get low significant bits from ISR
 		byte newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;
-		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		interrupts();
+		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		for (byte i = 0; i < 9; ++i) {
 		  if (tempHigh & (1 << i)) ++parity1;
 		  if (tempLow & (1 << i)) ++parity2;
