@@ -38,7 +38,7 @@ class ZACwire {
 		}
 		noInterrupts();  				//no ISRs because tempValue might change during reading
 		if (BitCounter != 20) misreading = true;
-		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;
+		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;	//+20 found out by trial and error
 		uint16_t tempHigh = tempValue[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = tempValue[1][backUP^misreading];		//get low significant bits from ISR
 		interrupts();
