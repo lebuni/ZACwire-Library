@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.1.0 beta
+	v1.1.1 beta
 */
 
 #ifndef ZACwire_h
@@ -73,6 +73,7 @@ class ZACwire {
   private:
   
   	static void ICACHE_RAM_ATTR read() {			//gets called with every rising edge
+		static bool ByteNr;
 		unsigned long microtime = micros();
   		deltaMicrotime = microtime - deltaMicrotime;	//measure time to previous rising edge
   		if (deltaMicrotime > 1000) {		  	//if last reading a long time ago -> begin new reading cycle
@@ -97,7 +98,6 @@ class ZACwire {
   	static volatile uint16_t tempValue[2][2];
   	static unsigned long deltaMicrotime;
   	static byte bitWindow;
-  	static bool ByteNr;
   	static volatile bool backUP;
 };
 
@@ -113,7 +113,5 @@ template<uint8_t pin>
 unsigned long ZACwire<pin>::deltaMicrotime;
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow = 0;
-template<uint8_t pin>
-bool ZACwire<pin>::ByteNr;
 
 #endif
