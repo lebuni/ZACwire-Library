@@ -21,7 +21,7 @@ class ZACwire {
 	  pinMode(pin, INPUT);
 	  bitWindow = 125;		//bitWindow is twice the Tstrobe
 	  deltaMicrotime = micros();
-	  if (!pulseInLong(pin, LOW, 110)) return false;
+	  if (!pulseInLong(pin, LOW)) return false;
 	  isrPin = digitalPinToInterrupt(pin);
 	  if (isrPin == -1) return false;
 	  attachInterrupt(isrPin, read, RISING);
