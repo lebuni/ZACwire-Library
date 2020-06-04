@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.1.2 stable
+	v1.1.3 beta
 */
 
 #ifndef ZACwire_h
