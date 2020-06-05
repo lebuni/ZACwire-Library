@@ -38,7 +38,7 @@ class ZACwire {
 		}
 		noInterrupts();  				//no ISRs because rawTemp might fluctuate
 		if (BitCounter != 20) misreading = true;	//use misreading-backup when newer reading is incomplete
-		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;	//+20 found out by trial and error
+		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;	//divide by 10.5 and add 20 (found out by trial and error)
 		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
 		interrupts();
