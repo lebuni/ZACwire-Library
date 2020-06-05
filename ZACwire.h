@@ -36,11 +36,11 @@ class ZACwire {
 			begin();
 			delay(110);
 		}
-		noInterrupts();  				//no ISRs because tempValue might fluctuate
+		noInterrupts();  				//no ISRs because rawTemp might fluctuate
 		if (BitCounter != 20) misreading = true;	//use misreading-backup when newer reading is incomplete
 		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;	//+20 found out by trial and error
-		uint16_t tempHigh = tempValue[0][backUP^misreading];		//get high significant bits from ISR
-		uint16_t tempLow = tempValue[1][backUP^misreading];		//get low   ''		''
+		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
+		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
 		interrupts();
 		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
 		for (byte i = 0; i < 9; ++i) {
@@ -78,15 +78,15 @@ class ZACwire {
   		if (deltaTime > 1000) {		  	//true at start bit
   			ByteTime = microtime;		//for measuring Tstrobe/bitWindow
 			backUP = !backUP;
-  			BitCounter = ByteNr = tempValue[0][backUP] = tempValue[1][backUP] = 0;
+  			BitCounter = ByteNr = rawTemp[0][backUP] = rawTemp[1][backUP] = 0;
   		}
 		if (++BitCounter == 11) {		//after stop bit
 			ByteTime = microtime - ByteTime;
 			ByteNr = 1;
 		}
-		tempValue[ByteNr][backUP] <<= 1;
+		rawTemp[ByteNr][backUP] <<= 1;
 		if (deltaTime > bitWindow);		//Logic 0
-		else if (deltaTime < bitWindow - 40 || tempValue[ByteNr][backUP] & 2) tempValue[ByteNr][backUP] |= 1;	//Logic 1
+		else if (deltaTime < bitWindow - 40 || rawTemp[ByteNr][backUP] & 2) rawTemp[ByteNr][backUP] |= 1;	//Logic 1
   		deltaTime = microtime;
   	}
 	
@@ -94,7 +94,7 @@ class ZACwire {
   	int _Sensortype;		//either 206, 306 or 506
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
-  	static volatile uint16_t tempValue[2][2];
+  	static volatile uint16_t rawTemp[2][2];
   	static unsigned long deltaTime;
   	static byte bitWindow;
   	static volatile bool backUP;
@@ -107,7 +107,7 @@ volatile unsigned long ZACwire<pin>::ByteTime;
 template<uint8_t pin>
 volatile bool ZACwire<pin>::backUP;
 template<uint8_t pin>
-volatile uint16_t ZACwire<pin>::tempValue[2][2];
+volatile uint16_t ZACwire<pin>::rawTemp[2][2];
 template<uint8_t pin>
 unsigned long ZACwire<pin>::deltaTime;
 template<uint8_t pin>
