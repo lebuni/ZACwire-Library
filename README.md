@@ -4,7 +4,7 @@
 [![GitHub license](https://img.shields.io/github/license/lebuni/ZACwire-Library.svg)](https://github.com/lebuni/ZACwire-Library/blob/master/LICENSE)
 
 
-Arduino Library to read the ZACwire protocol, wich is used by TSic temperature sensors 206, 306 and 506 on their signal pin.
+Arduino Library to read the ZACwire protocol on a ESP8266, wich is used by TSic temperature sensors 206, 306 and 506 on their signal pin.
 
 `ZACwire<int pin> obj(int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use
 
