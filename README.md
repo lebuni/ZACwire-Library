@@ -10,7 +10,7 @@ Arduino Library to read the ZACwire protocol on an ESP8266, wich is used by TSic
 
 `.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
 
-`.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a noisy signal, it returns 222
+`.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a bad signal, it returns 222
 
 
 ## Benefits compared to former TSic libraries
