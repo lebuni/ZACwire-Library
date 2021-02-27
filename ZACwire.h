@@ -6,6 +6,10 @@
 #ifndef ZACwire_h
 #define ZACwire_h
 
+#ifdef ESP32
+#define ICACHE_RAM_ATTR IRAM_ATTR
+#endif
+
 #include "Arduino.h"
 
 template <uint8_t pin>
