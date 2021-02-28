@@ -30,6 +30,8 @@ Arduino Library to read the ZACwire protocol on an ESP8266, wich is used by TSic
 
 ## Example
 ```c++
+#define ESP32
+
 #include <ZACwire.h>
 
 ZACwire<2> Sensor(306);		// set pin "2" to receive signal from the TSic "306"
