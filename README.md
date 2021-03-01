@@ -35,7 +35,7 @@ ZACwire<2> Sensor(306);		// set pin "2" to receive signal from the TSic "306"
 void setup() {
   Serial.begin(500000);
   
-  if (Sensor.begin() == TRUE) {     //check if a sensor is connected to the pin
+  if (Sensor.begin() == true) {     //check if a sensor is connected to the pin
     Serial.println("Signal found on pin 2");
   }
   delay(120);
