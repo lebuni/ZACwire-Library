@@ -41,7 +41,7 @@ class ZACwire {
 			delay(110);
 		}
 		if (BitCounter != 20) misreading = true;	//use misreading-backup when newer reading is incomplete
-		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 20;	//divide by 10.5 and add 20 (found out by trial and error)
+		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 10;	//divide by 10.5 and add 10 (found out by trial and error)
 		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
 		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
