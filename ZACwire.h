@@ -17,13 +17,15 @@ class ZACwire {
 	
   public:
   
-  	ZACwire(int Sensortype = 306){
+  	ZACwire(int Sensortype = 306, byte defaultBitWindow = 130, byte offset = 10){
   		_Sensortype = Sensortype;
+		_defaultBitWindow = defaultBitWindow;	//expected BitWindow in µs, depends on sensor
+		_offset = offset;			//offset for new calculated BitWindow, depends on how fast the µC reacts to interrupts
   	}
 	
-	bool begin() {			//start collecting data, needs to be called 100ms before the first getTemp()
+	bool begin() {					//start collecting data, needs to be called 100ms before the first getTemp()
 	  pinMode(pin, INPUT);
-	  bitWindow = 125;		//change from 0 to 125 to give the getTemp the info begin() was already executed
+	  bitWindow = _defaultBitWindow;		//change from 0 to defaultBitWindow to give the getTemp the info begin() was already executed
 	  deltaTime = micros();
 	  if (!pulseInLong(pin, LOW)) return false;	//check if there is an incoming signal
 	  isrPin = digitalPinToInterrupt(pin);
@@ -41,7 +43,7 @@ class ZACwire {
 			delay(110);
 		}
 		if (BitCounter != 20) misreading = true;	//use misreading-backup when newer reading is incomplete
-		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 10;	//divide by 10.5 and add 10 (found out by trial and error)
+		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + _offset;	//divide by 10.5 and add 10 (found out by trial and error)
 		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
 		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
@@ -94,6 +96,8 @@ class ZACwire {
 	
   	int isrPin;
   	int _Sensortype;		//either 206, 306 or 506
+	byte _defaultBitWindow;		//expected BitWindow in µs, according to datasheet 125
+	byte _offset;
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
   	static volatile uint16_t rawTemp[2][2];
