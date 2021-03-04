@@ -63,15 +63,15 @@ void loop() {
 
 
 
+
+
 ## Fine-Tuning
 Depending on the sensor build quality, the voltage and on the temperature range the sensor is operating in, there might be some fine-tuning necessary to get less failed readings.
 
 `ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, byte offset)`
 
 `byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 130µs.
-
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
 `byte offset` is an offset of the measured BitWindow, which needs to be added because your µC is not always that fast and might spend some time in ISRs, where the micros() aren't counted properly. The default offset is usually at 10µs.
-
 Change this, if you get **failed readings at any random time**.
