@@ -14,6 +14,8 @@ Arduino Library to read the ZACwire protocol on an ESP8266, wich is used by TSic
 
 `.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a bad signal, it returns 222
 
+`.end()` stops the reading for time sensititive tasks, which shouldn't be interrupted.
+
 
 ## Benefits compared to former TSic libraries
 - saves a lot of controller time, because no delay() is used and calculations are done by bit manipulation
