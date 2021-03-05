@@ -41,7 +41,7 @@ ZACwire<2> Sensor(306);		// set pin "2" to receive signal from the TSic "306"
 void setup() {
   Serial.begin(500000);
   
-  if (Sensor.begin() == TRUE) {     //check if a sensor is connected to the pin
+  if (Sensor.begin() == true) {     //check if a sensor is connected to the pin
     Serial.println("Signal found on pin 2");
   }
   delay(120);
@@ -77,7 +77,7 @@ ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, byte offset, bool core)
 `byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 130µs.
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
-`byte offset` is an offset of the measured BitWindow, which needs to be added because your µC is not always that fast and might spend some time in ISRs, where the micros() aren't counted properly. The default offset is usually at 10µs.
+`byte offset` is an offset of the measured BitWindow, which needs to be added because your µC doesn't count the micros() properly inside ISRs. The more ISRs you use, the higher you should make that offset. Just try it out! The default offset is at 10µs.
 Change this, if you get **failed readings at any random time**.
 
-`bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is CPU0
+`bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is CPU0.
