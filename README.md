@@ -6,8 +6,6 @@
 
 Arduino Library to read the ZACwire protocol on ESP8266 and ESP32, wich is used by TSic temperature sensors 206, 306 and 506 on their signal pin.
 
-`#define ESP32` in case you work with an ESP32
-
 `ZACwire<int pin> obj(int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use
 
 `.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
@@ -32,7 +30,6 @@ Arduino Library to read the ZACwire protocol on ESP8266 and ESP32, wich is used 
 
 ## Example
 ```c++
-#define ESP32   // in case you use an ESP32
 
 #include <ZACwire.h>
 
