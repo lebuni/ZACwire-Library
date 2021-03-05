@@ -65,7 +65,7 @@ void loop() {
 
 
 ## Fine-Tuning
-Depending on the sensor build quality, the voltage and on the temperature range the sensor is operating in, there might be some fine-tuning necessary to get less failed readings.
+In case of failed readings, there might be some fine-tuning necessary.
 
 ```c++
 ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, byte offset, bool core)
