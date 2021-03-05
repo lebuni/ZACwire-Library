@@ -28,7 +28,7 @@ class ZACwire {
 	  isrPin = digitalPinToInterrupt(pin);
 	  if (isrPin == -1) return false;
 	  #ifdef ESP32
-	  xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR_ESP32",700,NULL,1,NULL,_core);	//freeRTOS
+	  xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR_ESP32",800,NULL,1,NULL,_core);	//freeRTOS
 	  #else
 	  attachInterrupt(isrPin, read, RISING);
 	  #endif
