@@ -1,14 +1,10 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.2.0b
+	v1.2.1b
 */
 
 #ifndef ZACwire_h
 #define ZACwire_h
-
-#ifdef ESP32
-#define ICACHE_RAM_ATTR IRAM_ATTR
-#endif
 
 #include "Arduino.h"
 
@@ -17,10 +13,11 @@ class ZACwire {
 	
   public:
   
-  	ZACwire(int Sensortype = 306, byte defaultBitWindow = 130, byte offset = 10){
+  	ZACwire(int Sensortype = 306, byte defaultBitWindow = 130, byte offset = 10, bool core = 0){
   		_Sensortype = Sensortype;
 		_defaultBitWindow = defaultBitWindow;	//expected BitWindow in µs, depends on sensor
 		_offset = offset;			//offset for new calculated BitWindow, depends on how fast the µC reacts to interrupts
+		_core = core;				//only ESP32: choose cpu0 or cpu1
   	}
 	
 	bool begin() {					//start collecting data, needs to be called 100ms before the first getTemp()
@@ -30,7 +27,11 @@ class ZACwire {
 	  if (!pulseInLong(pin, LOW)) return false;	//check if there is an incoming signal
 	  isrPin = digitalPinToInterrupt(pin);
 	  if (isrPin == -1) return false;
+	  #ifdef ESP32
+	  xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR_ESP32",700,NULL,1,NULL,_core);	//freeRTOS
+	  #else
 	  attachInterrupt(isrPin, read, RISING);
+	  #endif
 	  return true;
   	}
   
@@ -73,9 +74,21 @@ class ZACwire {
   		detachInterrupt(isrPin);
   	}
 
-  private:
-  
+  private:	
+	
+	#ifdef ESP32
+	static void attachISR_ESP32(void *arg){			//attach ISR in freeRTOS because arduino can't attachInterrupt() inside of template clas
+	  gpio_pad_select_gpio((gpio_num_t)isrPin);
+	  gpio_set_direction((gpio_num_t)isrPin, GPIO_MODE_INPUT);
+	  gpio_set_intr_type((gpio_num_t)isrPin, GPIO_INTR_POSEDGE);
+	  gpio_install_isr_service(0);
+	  gpio_isr_handler_add((gpio_num_t)isrPin, read, NULL);
+	  vTaskDelete(NULL);
+	}
+	static void IRAM_ATTR read(void *arg) {
+	#else
   	static void ICACHE_RAM_ATTR read() {			//gets called with every rising edge
+	#endif
 		static bool ByteNr;
 		unsigned long microtime = micros();
   		deltaTime = microtime - deltaTime;	//measure time to previous rising edge
@@ -94,10 +107,11 @@ class ZACwire {
   		deltaTime = microtime;
   	}
 	
-  	int isrPin;
+  	static int isrPin;
   	int _Sensortype;		//either 206, 306 or 506
 	byte _defaultBitWindow;		//expected BitWindow in µs, according to datasheet 125
 	byte _offset;
+	bool _core;
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
   	static volatile uint16_t rawTemp[2][2];
@@ -116,6 +130,8 @@ template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::rawTemp[2][2];
 template<uint8_t pin>
 unsigned long ZACwire<pin>::deltaTime;
+template<uint8_t pin>
+int ZACwire<pin>::isrPin;
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow = 0;
 
