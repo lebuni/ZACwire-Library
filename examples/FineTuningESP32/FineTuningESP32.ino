@@ -1,4 +1,3 @@
-#define ESP32
 #include <ZACwire.h>
 
 ZACwire<14> Sensor(206,140,10,1);		// set pin "2" to receive signal from the TSic "206" with an expected bitWindow of "140µs" and an offset of "10µs". ISR executed on CPU1
