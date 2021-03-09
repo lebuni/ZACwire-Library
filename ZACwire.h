@@ -86,8 +86,10 @@ class ZACwire {
 	  vTaskDelete(NULL);
 	}
 	static void IRAM_ATTR read(void *arg) {
-	#else
-  	static void ICACHE_RAM_ATTR read() {			//gets called with every rising edge
+	#elif defined(ESP8266)
+  	static void ICACHE_RAM_ATTR read() {
+  	#else
+  	static void read() {				//gets called with every rising edge
 	#endif
 		static bool ByteNr;
 		unsigned long microtime = micros();
