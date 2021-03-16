@@ -16,7 +16,7 @@ class ZACwire {
   	ZACwire(int Sensortype = 306, byte defaultBitWindow = 130, byte offset = 10, bool core = 0){
   		_Sensortype = Sensortype;
 		_defaultBitWindow = defaultBitWindow;	//expected BitWindow in µs, depends on sensor
-		_offset = offset;			//offset for new calculated BitWindow, depends on how fast the µC reacts to interrupts
+		_offset = offset;			//offset for new calculated BitWindow in µs
 		_core = core;				//only ESP32: choose cpu0 or cpu1
   	}
 	
@@ -44,10 +44,10 @@ class ZACwire {
 			delay(110);
 		}
 		if (BitCounter != 20) misreading = true;	//use misreading-backup when newer reading is incomplete
-		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + _offset;	//divide by 10.5 and add 10 (found out by trial and error)
+		else newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + _offset;	//divide by 10.5 and add offset
 		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
-		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with rising temperature
+		if (abs(bitWindow-newBitWindow) < 20) bitWindow += (newBitWindow >> 3) - (bitWindow >> 3);	//adjust bitWindow time, which varies with temperature
 		for (byte i = 0; i < 9; ++i) {
 		  if (tempHigh & 1 << i) ++parity1;	//count "1" bits, which have to be even --> failure check
 		  if (tempLow & 1 << i) ++parity2;
