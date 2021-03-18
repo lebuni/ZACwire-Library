@@ -80,4 +80,4 @@ Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
 `bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is CPU0.
 
-If `.getTemp()` gives you 221 as an output, the library detected an unusual long period without new signals. Please check your cables!
+If `.getTemp()` gives you **221** as an output, the library detected an unusual long period without new signals. Please check your cables!
