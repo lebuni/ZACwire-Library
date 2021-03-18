@@ -10,7 +10,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 `.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
 
-`.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a bad signal, it returns 222
+`.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a failed reading, it returns `222`. In case of no incoming signal it returns `221`.
 
 `.end()` stops the reading for time sensititive tasks, which shouldn't be interrupted.
 
@@ -51,6 +51,10 @@ void loop() {
     Serial.println("Reading failed");
   }
   
+  else if (Input == 221) {
+    Serial.println("Sensor not connected");
+  }
+  
   else {
     Serial.print("Temp: ");
     Serial.println(Input);
@@ -68,13 +72,12 @@ void loop() {
 In case of failed readings, there might be some fine-tuning necessary.
 
 ```c++
-ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, byte offset, bool core)
+ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, bool core)
 ```
 
-`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 130µs.
+`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 120µs.
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
-`byte offset` is an offset of the measured BitWindow, which needs to be added because your µC doesn't count the micros() properly inside ISRs. The more ISRs you use, the higher you should make that offset. Just try it out! The default offset is at 10µs.
-Change this, if you get **failed readings at any random time**.
-
 `bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is CPU0.
+
+If `.getTemp()` gives you 221 as an output, the library detected an unusual long period without new signals. Please check your cables!
