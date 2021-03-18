@@ -13,13 +13,13 @@ class ZACwire {
 	
   public:
   
-  	ZACwire(int Sensortype = 306, byte defaultBitWindow = 135, bool core = 0){
+  	ZACwire(int Sensortype = 306, byte defaultBitWindow = 120, bool core = 0){
   		_Sensortype = Sensortype;
-		_defaultBitWindow = defaultBitWindow;	//expected BitWindow in µs, depends on sensor & temperature
+		_defaultBitWindow = defaultBitWindow + (range >> 1);	//expected BitWindow in µs, depends on sensor & temperature
 		_core = core;				//only ESP32: choose cpu0 or cpu1
   	}
 	
-	bool begin() {					//start collecting data, needs to be called 100+ms before the first getTemp()
+	bool begin() {					//start collecting data, needs to be called 120+ms before the first getTemp()
 	  pinMode(pin, INPUT);
 	  bitWindow = _defaultBitWindow;		//change from 0 to defaultBitWindow to give the getTemp the info begin() was already executed
 	  deltaTime = micros();
@@ -45,13 +45,13 @@ class ZACwire {
 			}
 			else return 221;		// temp=221 if sensor not connected
 		}
-		if (BitCounter == 20) newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + 15;	//divide by 10.5 and add offset
+		if (BitCounter == 20) newBitWindow = ((ByteTime << 5) + (ByteTime << 4) + ByteTime >> 9) + (range >> 1);	//divide by 10.5 and add offset
 		else misreading = !misreading;					//use misreading-backup when newer reading is incomplete
 		uint16_t tempHigh = rawTemp[0][backUP^misreading];		//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][backUP^misreading];		//get low   ''		''
 		
-		if (bitWindow == 135) bitWindow = newBitWindow;			//adjust bitWindow time, which varies with temperature
-		else if (bitWindow < newBitWindow) ++bitWindow;
+		if (bitWindow == _defaultBitWindow) bitWindow = newBitWindow;	//
+		else if (bitWindow < newBitWindow) ++bitWindow;			//adjust bitWindow time, which varies with temperature
 		else --bitWindow;
 		
 		for (byte i = 0; i < 9; ++i) {
@@ -111,7 +111,7 @@ class ZACwire {
 		}
 		rawTemp[ByteNr][backUP] <<= 1;
 		if (deltaTime > bitWindow);		//Logic 0
-		else if (deltaTime < bitWindow - 30 || rawTemp[ByteNr][backUP] & 2) rawTemp[ByteNr][backUP] |= 1;	//Logic 1
+		else if (deltaTime < bitWindow - range || rawTemp[ByteNr][backUP] & 2) rawTemp[ByteNr][backUP] |= 1;	//Logic 1
   		deltaTime = microtime;
   	}
 	
@@ -119,27 +119,28 @@ class ZACwire {
   	int _Sensortype;		//either 206, 306 or 506
 	byte _defaultBitWindow;		//expected BitWindow in µs, according to datasheet 125
 	bool _core;
+	static byte bitWindow;
+	static const byte range = 30;
+	static volatile bool backUP;
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
   	static volatile uint16_t rawTemp[2][2];
   	static volatile unsigned long deltaTime;
-  	static byte bitWindow;
-  	static volatile bool backUP;
 };
 
+template<uint8_t pin>
+int ZACwire<pin>::isrPin;
+template<uint8_t pin>
+byte ZACwire<pin>::bitWindow = 0;
+template<uint8_t pin>
+volatile bool ZACwire<pin>::backUP;
 template<uint8_t pin>
 volatile byte ZACwire<pin>::BitCounter;
 template<uint8_t pin>
 volatile unsigned long ZACwire<pin>::ByteTime;
 template<uint8_t pin>
-volatile bool ZACwire<pin>::backUP;
-template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::rawTemp[2][2];
 template<uint8_t pin>
 volatile unsigned long ZACwire<pin>::deltaTime;
-template<uint8_t pin>
-int ZACwire<pin>::isrPin;
-template<uint8_t pin>
-byte ZACwire<pin>::bitWindow = 0;
 
 #endif
