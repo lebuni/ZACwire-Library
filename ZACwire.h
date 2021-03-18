@@ -38,7 +38,7 @@ class ZACwire {
 		static bool misreading = false;
 		static byte newBitWindow;
 		byte parity1 = 0, parity2 = 0;
-		if (micros() - deltaTime >> 17) {    	//check wire connection for the last 131ms
+		if (micros() - deltaTime >> 18) {    	//check wire connection for the last 262ms
 			if (!bitWindow) { 		//check if begin() was already called
 			begin();
 			delay(110);
