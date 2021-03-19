@@ -120,7 +120,7 @@ class ZACwire {
 	byte _defaultBitWindow;		//expected BitWindow in µs, according to datasheet 125
 	bool _core;
 	static byte bitWindow;
-	static const byte range = 36;
+	static const byte range = 38;
 	static volatile bool backUP;
   	static volatile byte BitCounter;
   	static volatile unsigned long ByteTime;
