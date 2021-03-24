@@ -102,7 +102,7 @@ class ZACwire {
 			unsigned int microtime = micros();
 			static unsigned int deltaTime;
 			deltaTime = microtime - deltaTime;		//measure time to previous rising edge
-			if (BitCounter >= 20 || deltaTime >> 10) {					//true at start bit
+			if (deltaTime >> 10) {					//true at start bit
 				ByteTime = microtime;				//for measuring Tstrobe/bitWindow
 				backUP = !backUP;
 				BitCounter = 0;
