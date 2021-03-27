@@ -37,7 +37,7 @@ class ZACwire {
 		static bool misreading = false;
 		byte newBitWindow = _defaultBitWindow;
 		byte parity1 = 0, parity2 = 0;
-		if ((unsigned int)millis() - lastISR >> 8) {	//check wire connection for the last 256ms
+		if ((unsigned int)millis() - lastISR > 255) {	//check wire connection for the last 255ms
 			if (bitWindow) return 221;				// temp=221 if sensor not connected
 			else {									// w/o bitWindow, begin() wasn't called before
 				begin();
