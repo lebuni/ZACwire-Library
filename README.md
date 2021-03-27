@@ -18,7 +18,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 ## Benefits compared to former TSic libraries
 - saves a lot of controller time, because no delay() is used and calculations are done by bit manipulation
 - low memory consumption
-- misreading rate lower than 0.01%
+- misreading rate lower than 0.001%
 - reading an unlimited number of TSic simultaneously
 - higher accuracy (0.1°C offset corrected)
 - simple use
@@ -78,6 +78,6 @@ ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, bool core)
 `byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 120µs.
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
-`bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is CPU0.
-
-If `.getTemp()` gives you **221** as an output, the library detected an unusual long period without new signals. Please check your cables!
+`bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is Core1. Using Core0 might cause some corrupted readings (up to 0.1%), but can be the better option if Core1 is very busy.
+ 
+If `.getTemp()` gives you **221** as an output, the library detected an unusual long period without new signals. Please check your cables or try using the RC filter, that is mentioned in the datasheet of the TSic.
