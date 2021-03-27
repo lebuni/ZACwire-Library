@@ -13,7 +13,7 @@ class ZACwire {
   
   public:
   
-	ZACwire(int Sensortype = 306, byte defaultBitWindow = 125, bool core = 0){
+	ZACwire(int Sensortype = 306, byte defaultBitWindow = 125, bool core = 1){
       _Sensortype = Sensortype;
       _defaultBitWindow = defaultBitWindow + (range >> 1);	//expected BitWindow in µs, depends on sensor & temperature
       _core = core;									//only ESP32: choose cpu0 or cpu1
