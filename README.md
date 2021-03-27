@@ -75,7 +75,7 @@ In case of failed readings, there might be some fine-tuning necessary.
 ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, bool core)
 ```
 
-`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but to my experience the code starts better with 120µs.
+`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but it varies with temperature.
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
 `bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is Core1. Using Core0 might cause some corrupted readings (up to 0.1%), but can be the better option if Core1 is very busy.
