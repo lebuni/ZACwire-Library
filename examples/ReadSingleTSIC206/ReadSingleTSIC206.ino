@@ -14,7 +14,7 @@ void setup() {
 void loop() {
   float Input = Sensor.getTemp();     //get the Temperature in °C
   
-  if (Input == 222) {
+  if (Input > 200) {
     Serial.println("Reading failed");
   }
   
