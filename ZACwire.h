@@ -50,10 +50,8 @@ class ZACwire {
 		uint16_t tempHigh = rawTemp[0][_backUP];	//get high significant bits from ISR
 		uint16_t tempLow = rawTemp[1][_backUP];		//get low   ''    ''
 		
-		if (bitWindow == _defaultBitWindow) bitWindow = newBitWindow;	//adjust bitWindow time, which varies with temperature
-		else if (bitWindow < newBitWindow) ++bitWindow;
-		else --bitWindow;
-		
+		bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow time, which varies with temperature
+
 		for (byte i = 0; i < 9; ++i) {
 			if (tempHigh & 1 << i) ++parity1;		//count "1" bits, which have to be even --> failure check
 			if (tempLow & 1 << i) ++parity2;
