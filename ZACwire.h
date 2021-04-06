@@ -101,13 +101,11 @@ class ZACwire {
 				BitCounter = 0;
 				lastISR = millis();					//for checking wire connection
 			}
+			else if (BitCounter == 6) rawTemp[ByteNr][backUP] = ByteNr = 0;
 			else if (BitCounter == 10) {			//after stop bit
 				ByteTime = microtime - ByteTime;
-				ByteNr = 1;
-				rawTemp[1][backUP] = 0;
+				rawTemp[ByteNr = 1][backUP] = 0;
 			}
-			else if (BitCounter == 6) ByteNr = rawTemp[0][backUP] = 0;
-			 
 			rawTemp[ByteNr][backUP] <<= 1;      
 			if (deltaTime > bitWindow);				//Logic 0
 			else if (rawTemp[ByteNr][backUP] & 2 || deltaTime < bitWindow - (range >> (BitCounter==11))) rawTemp[ByteNr][backUP] |= 1;  //Logic 1
