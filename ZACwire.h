@@ -33,9 +33,8 @@ class ZACwire {
 		return true;
     }
   
-	float getTemp() {								//gives back temperature in °C
-		static bool misreading = false;
-		bool parity[2] = {false,false};
+	float getTemp() {								//give back temperature in °C
+		static bool misreading;
 		uint16_t temp[2];
 		if ((unsigned int)millis() - lastISR > 255) {	//check wire connection for the last 255ms
 			if (bitWindow) return 221;				// temp=221 if sensor not connected
@@ -53,19 +52,20 @@ class ZACwire {
 		temp[0] = rawTemp[0][_backUP];				//get high significant bits from ISR
 		temp[1] = rawTemp[1][_backUP];				//get low   ''    ''
 		misreading = !misreading;					//reset misreading after use
-
-		for (byte j=0; j<2; j++) {
-			for (byte i = 0; i < 9; ++i) parity[j] ^= temp[j] & 1 << i;	//check parity
-			temp[j] >>= 1;							// delete parity bits
+		
+		bool parity = true;
+		for (byte j=0; j<2; ++j) {
+			for (byte i=0; i<9; ++i) parity ^= temp[j] & 1 << i;	//check parity
+			temp[j] >>= 1;							//delete parity bit
 		}
-		if (parity[0] & parity[1]) { 				// check for failure
+		if (parity) { 								//check for failure
 			temp[1] |= temp[0] << 8;				//join high and low significant figures
 			misreading = false;
-			if (_Sensortype < 400) return float((temp[1] * 250L >> 8) - 499) / 10;  //calculates °C
+			if (_Sensortype < 400) return float((temp[1] * 250L >> 8) - 499) / 10;  //calculate °C
 			else return float((temp[1] * 175L >> 9) - 99) / 10;
 		}
-		else if (misreading) getTemp();				//restart with backUP raw temperature
-		return 222;									// temp=222 if reading failed
+		else if (misreading) return getTemp();		//restart with backUP raw temperature
+		return 222;									//temp=222 if reading failed
 	}
 
   
@@ -88,7 +88,7 @@ class ZACwire {
 	#elif defined(ESP8266)
 	static void ICACHE_RAM_ATTR read() {
 	#else
-	static void read() {							//gets called with every rising edge
+	static void read() {							//get called with every rising edge
 	#endif
 		if (++BitCounter > 4) {						//first 4 bits always =0
 			static bool ByteNr;
@@ -137,7 +137,7 @@ volatile uint16_t ZACwire<pin>::rawTemp[2][2];
 template<uint8_t pin>
 int ZACwire<pin>::isrPin;
 template<uint8_t pin>
-byte ZACwire<pin>::bitWindow = 0;
+byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
 volatile unsigned int ZACwire<pin>::lastISR;
 
