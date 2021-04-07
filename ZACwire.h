@@ -1,6 +1,6 @@
 /*  ZACwire - Library for reading temperature sensors TSIC 206/306/506
   created by Adrian Immer in 2020
-  v1.3.0
+  v1.3.1
 */
 
 #ifndef ZACwire_h
@@ -33,10 +33,9 @@ class ZACwire {
 		return true;
     }
   
-	float getTemp() {								//gives back temperature in °C
-		static bool misreading = false;
-		byte newBitWindow = _defaultBitWindow;
-		byte parity1 = 0, parity2 = 0;
+	float getTemp() {								//give back temperature in °C
+		static bool misreading;
+		uint16_t temp[2];
 		if ((unsigned int)millis() - lastISR > 255) {	//check wire connection for the last 255ms
 			if (bitWindow) return 221;				// temp=221 if sensor not connected
 			else {									// w/o bitWindow, begin() wasn't called before
@@ -44,35 +43,31 @@ class ZACwire {
 				delay(110);
 			}
 		}
-		if (BitCounter == 19) newBitWindow = ((ByteTime << 1) + ByteTime >> 5) + (range >> 1);  //divide by around 10.5
+		if (BitCounter == 19) {
+			byte newBitWindow = ((ByteTime << 1) + ByteTime >> 5) + (range >> 1);  //divide by around 10.5 and add half range
+			bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow
+		}
 		else misreading = true;						//use misreading-backup when newer reading is incomplete
 		bool _backUP = backUP^misreading;
-		uint16_t tempHigh = rawTemp[0][_backUP];	//get high significant bits from ISR
-		uint16_t tempLow = rawTemp[1][_backUP];		//get low   ''    ''
+		temp[0] = rawTemp[0][_backUP];				//get high significant bits from ISR
+		temp[1] = rawTemp[1][_backUP];				//get low   ''    ''
+		misreading = !misreading;					//reset misreading after use
 		
-		bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow time, which varies with temperature
-
-		for (byte i = 0; i < 9; ++i) {
-			if (tempHigh & 1 << i) ++parity1;		//count "1" bits, which have to be even --> failure check
-			if (tempLow & 1 << i) ++parity2;
+		bool parity = true;
+		for (byte j=0; j<2; ++j) {
+			for (byte i=0; i<9; ++i) parity ^= temp[j] & 1 << i;	//check parity
+			temp[j] >>= 1;							//delete parity bit
 		}
-		if (tempHigh | tempLow && ~(parity1 | parity2) & 1) { // check for failure
-			tempHigh >>= 1;							// delete parity bits
-			tempLow >>= 1;
-			tempLow |= tempHigh << 8;				//join high and low significant figures
+		if (parity) { 								//check for failure
+			temp[1] |= temp[0] << 8;				//join high and low significant figures
 			misreading = false;
-			if (_Sensortype < 400) return float((tempLow * 250L >> 8) - 499) / 10;  //calculates °C
-			else return float((tempLow * 175L >> 9) - 99) / 10;
+			if (_Sensortype < 400) return float((temp[1] * 250L >> 8) - 499) / 10;  //calculate °C
+			else return float((temp[1] * 175L >> 9) - 99) / 10;
 		}
-		else if (!misreading) {						//restart with backUP raw temperature
-			misreading = true;
-			getTemp();
-		}
-		else {
-			misreading = false;
-			return 222;								// temp=222 if reading failed
-		}
+		else if (misreading) return getTemp();		//restart with backUP raw temperature
+		return 222;									//temp=222 if reading failed
 	}
+
   
 	void end() {
 		detachInterrupt(isrPin);
@@ -93,7 +88,7 @@ class ZACwire {
 	#elif defined(ESP8266)
 	static void ICACHE_RAM_ATTR read() {
 	#else
-	static void read() {							//gets called with every rising edge
+	static void read() {							//get called with every rising edge
 	#endif
 		if (++BitCounter > 4) {						//first 4 bits always =0
 			static bool ByteNr;
@@ -106,13 +101,11 @@ class ZACwire {
 				BitCounter = 0;
 				lastISR = millis();					//for checking wire connection
 			}
+			else if (BitCounter == 6) rawTemp[ByteNr][backUP] = ByteNr = 0;
 			else if (BitCounter == 10) {			//after stop bit
 				ByteTime = microtime - ByteTime;
-				ByteNr = 1;
-				rawTemp[1][backUP] = 0;
+				rawTemp[ByteNr = 1][backUP] = 0;
 			}
-			else if (BitCounter == 6) ByteNr = rawTemp[0][backUP] = 0;
-			 
 			rawTemp[ByteNr][backUP] <<= 1;      
 			if (deltaTime > bitWindow);				//Logic 0
 			else if (rawTemp[ByteNr][backUP] & 2 || deltaTime < bitWindow - (range >> (BitCounter==11))) rawTemp[ByteNr][backUP] |= 1;  //Logic 1
@@ -144,7 +137,7 @@ volatile uint16_t ZACwire<pin>::rawTemp[2][2];
 template<uint8_t pin>
 int ZACwire<pin>::isrPin;
 template<uint8_t pin>
-byte ZACwire<pin>::bitWindow = 0;
+byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
 volatile unsigned int ZACwire<pin>::lastISR;
 
