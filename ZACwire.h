@@ -103,7 +103,7 @@ class ZACwire {
 			}
 		}
 
-		static byte isrPin = -1;
+		static byte isrPin;
 		int _sensor;
 		bool _core;
 		static volatile byte bitCounter;
@@ -124,7 +124,7 @@ volatile bool ZACwire<pin>::backUP;
 template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::rawTemp[2];
 template<uint8_t pin>
-byte ZACwire<pin>::isrPin;
+byte ZACwire<pin>::isrPin = 255;
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
