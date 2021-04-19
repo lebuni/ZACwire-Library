@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2b2
+	v1.3.2b3
 */
 
 #ifndef ZACwire_h
@@ -15,7 +15,7 @@ class ZACwire {
 
 		ZACwire(int sensor = 306, byte defaultBitWindow = 125, bool core = 1){
 		_sensor = sensor;
-		bitWindow = defaultBitWindow + (range >> 1);				//expected BitWindow in µs, depends on sensor & temperature
+		bitWindow = defaultBitWindow + range/2;					//expected BitWindow in µs, depends on sensor & temperature
 		_core = core;								//only ESP32: choose cpu0 or cpu1
 		}
 
@@ -33,18 +33,18 @@ class ZACwire {
 	    }
 	  
 		float getTemp() {							//give back temperature in °C
-			static bool misreading;
-			if ((unsigned int)millis() - lastISR > 255) {			//check wire connection for the last 255ms
-				if (isrPin != 255) return 221;				//only before call of begin()
+			if (++heartbeat > 3) {						//check wire connection
+				if (byteTime) return 221;				//use byteTime to prove that ISR was already attached
 				begin();
 				delay(110);
 			}
 			
-			if (bitCounter == 19) {
-				byte newBitWindow = (((byteTime << 1) + byteTime) >> 5) + (range >> 1);	//divide by around 10.5 and add half range
+			if (bitCounter > 10) {
+				byte newBitWindow = (((byteTime << 1) + byteTime) >> 5) + range/2;	//divide by around 10.5 and add half range
 				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow
 			}
 			
+			static bool misreading;
 			if (bitCounter != 19) misreading = true;			//use misreading-backup when newer reading is incomplete
 			uint16_t temp = rawTemp[backUP^misreading];			//get rawTemp from ISR
 			misreading = !misreading;					//reset misreading after use
@@ -54,7 +54,7 @@ class ZACwire {
 			
 			if (parity) {
 				temp >>= 1;						//delete last parity bit
-				temp = (temp >> 1 & 1792) | (temp & 255);		//delete first  "     "
+				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first  "     "
 				misreading = false;
 				return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
 			}
@@ -90,33 +90,39 @@ class ZACwire {
 				if (deltaTime >> 10) {					//start bit
 					byteTime = microtime;				//measuring Tstrobe/bitWindow
 					backUP = !backUP;
-					bitCounter = 0;
-					lastISR = millis();				//for checking wire connection
+					bitCounter = heartbeat = 0;			//give a sign of life to getTemp()
 				}
-				else if (bitCounter == 10) byteTime = microtime - byteTime;	//stop bit
+				else if (bitCounter == 5) rawTemp[backUP] = 2;
 				else {
-					if (bitCounter == 6) rawTemp[backUP] = 0;
+					if (bitCounter == 10) {				//stop bit
+						byteTime = microtime - byteTime;
+						microtime += range/2;			//convert timestamp to normal 0 bit
+					}
 					rawTemp[backUP] <<= 1;
-					rawTemp[backUP] |= deltaTime < bitWindow - (range >> (bitCounter==11) & -!(rawTemp[backUP] & 2));	//check if sent bit is either 1 or 0
+					rawTemp[backUP] |= deltaTime + (range & -!(rawTemp[backUP] & 2)) < bitWindow;	//add range if previous bit was 1
 				}
 				deltaTime = microtime;
 			}
 		}
 
-		static byte isrPin;
 		int _sensor;
 		bool _core;
+		static byte bitWindow;
+		static byte isrPin;
+		static const byte range = 62;
 		static volatile byte bitCounter;
 		static volatile unsigned int byteTime;
-		static volatile uint16_t rawTemp[2];
-		static byte bitWindow;
-		static const byte range = 62;
 		static volatile bool backUP;
-		static volatile unsigned int lastISR;
+		static volatile uint16_t rawTemp[2];
+		static volatile byte heartbeat;
 };
 
 template<uint8_t pin>
-volatile byte ZACwire<pin>::bitCounter = 20;
+byte ZACwire<pin>::bitWindow;
+template<uint8_t pin>
+byte ZACwire<pin>::isrPin;
+template<uint8_t pin>
+volatile byte ZACwire<pin>::bitCounter;
 template<uint8_t pin>
 volatile unsigned int ZACwire<pin>::byteTime;
 template<uint8_t pin>
@@ -124,10 +130,6 @@ volatile bool ZACwire<pin>::backUP;
 template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::rawTemp[2];
 template<uint8_t pin>
-byte ZACwire<pin>::isrPin = 255;
-template<uint8_t pin>
-byte ZACwire<pin>::bitWindow;
-template<uint8_t pin>
-volatile unsigned int ZACwire<pin>::lastISR;
+volatile byte ZACwire<pin>::heartbeat;
 
 #endif
