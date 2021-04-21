@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2b3
+	v1.3.2b4
 */
 
 #ifndef ZACwire_h
@@ -39,26 +39,25 @@ class ZACwire {
 				delay(110);
 			}
 			
-			if (bitCounter > 10) {
-				byte newBitWindow = (((byteTime << 1) + byteTime) >> 5) + range/2;	//divide by around 10.5 and add half range
-				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow
-			}
-			
-			static bool misreading;
-			if (bitCounter != 19) misreading = true;			//use misreading-backup when newer reading is incomplete
-			uint16_t temp = rawTemp[backUP^misreading];			//get rawTemp from ISR
-			misreading = !misreading;					//reset misreading after use
+			static bool useBackup, pariError;
+			if (bitCounter != 19) useBackup = true;				//when newer reading is incomplete
+			uint16_t temp = rawTemp[backUP^useBackup^pariError];		//get rawTemp from ISR
 			
 			bool parity = true;
-			for (byte i=0; i<13; ++i) parity ^= temp & 1 << i;		//check parity
+			for (byte i=0; i<14; ++i) parity ^= temp & 1 << i;		//check parity
 			
-			if (parity) {
+			if (parity & temp >> 15) {					//check most significant bit
+			
+				byte newBitWindow = (((byteTime << 1) + byteTime) >> 5) + range/2;	//divide by around 10.5 and add half range
+				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow
+				
 				temp >>= 1;						//delete last parity bit
 				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first  "     "
-				misreading = false;
+				useBackup = pariError = false;
 				return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
 			}
-			return misreading ? getTemp(): 222;				//restart with backUP raw temperature or return error
+			useBackup &= pariError = !pariError;				//reset pariError after use
+			return pariError ? getTemp(): 222;				//restart with backUP raw temperature or return error
 		}
 
 
@@ -92,7 +91,7 @@ class ZACwire {
 					backUP = !backUP;
 					bitCounter = heartbeat = 0;			//give a sign of life to getTemp()
 				}
-				else if (bitCounter == 5) rawTemp[backUP] = 2;
+				else if (bitCounter == 5) rawTemp[backUP] = 2;		//set most significant bit 1, other 0
 				else {
 					if (bitCounter == 10) {				//stop bit
 						byteTime = microtime - byteTime;
