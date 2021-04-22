@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2b4
+	v1.3.2b5
 */
 
 #ifndef ZACwire_h
@@ -14,9 +14,9 @@ class ZACwire {
 	public:
 
 		ZACwire(int sensor = 306, byte defaultBitWindow = 125, bool core = 1){
-		_sensor = sensor;
-		bitWindow = defaultBitWindow + range/2;					//expected BitWindow in µs, depends on sensor & temperature
-		_core = core;								//only ESP32: choose cpu0 or cpu1
+			_sensor = sensor;
+			bitWindow = defaultBitWindow + (defaultBitWindow>>2);		//expected BitWindow in µs, depends on sensor & temperature
+			_core = core;							//only ESP32: choose cpu0 or cpu1
 		}
 
 		bool begin() {								//start collecting data, needs to be called 100+ms before first getTemp()
@@ -30,34 +30,37 @@ class ZACwire {
 			attachInterrupt(isrPin, read, RISING);
 			#endif
 			return true;
-	    }
+		}
 	  
 		float getTemp() {							//give back temperature in °C
 			if (++heartbeat > 3) {						//check wire connection
-				if (byteTime) return 221;				//use byteTime to prove that ISR was already attached
+				if (isrPin != 255) return 221;				//use isrPin to prove that ISR was already attached
 				begin();
 				delay(110);
 			}
 			
-			static bool useBackup, pariError;
+			if (bitCounter > 4 && bitCounter < 11) {			//adjust bitWindow
+				uint16_t newBitWindow = rawData[backUP] >> (bitCounter - 4);	//seperate newBitWindow from temperature bits
+				newBitWindow = (((newBitWindow<<1) + newBitWindow) >> 4) + (bitWindow>>2);	//divide by 5.3 and add 1/4 bitWindow
+				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;
+			}
+			
+			static bool useBackup;
 			if (bitCounter != 19) useBackup = true;				//when newer reading is incomplete
-			uint16_t temp = rawTemp[backUP^useBackup^pariError];		//get rawTemp from ISR
+			uint16_t temp = rawData[backUP^useBackup];			//get rawData from ISR
 			
 			bool parity = true;
-			for (byte i=0; i<14; ++i) parity ^= temp & 1 << i;		//check parity
+			for (byte i=0; i<9; ++i) parity ^= temp & 1 << i;		//check parity
+			if (parity) for (byte i=10; i<14; ++i) parity ^= temp & 1 << i;
 			
-			if (parity & temp >> 15) {					//check most significant bit
-			
-				byte newBitWindow = (((byteTime << 1) + byteTime) >> 5) + range/2;	//divide by around 10.5 and add half range
-				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;	//adjust bitWindow
-				
-				temp >>= 1;						//delete last parity bit
-				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first  "     "
-				useBackup = pariError = false;
+			if (parity && temp >> 14 == 2 && ~temp & 512) {			//three factor check: parity, prefix "10", stop bit
+				temp >>= 1;						//delete second parity bit
+				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first    "     "
+				useBackup = false;
 				return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
 			}
-			useBackup &= pariError = !pariError;				//reset pariError after use
-			return pariError ? getTemp(): 222;				//restart with backUP raw temperature or return error
+			useBackup = !useBackup;						//reset useBackup after use
+			return useBackup ? getTemp(): 222;				//restart with backUP rawData or return error
 		}
 
 
@@ -65,7 +68,7 @@ class ZACwire {
 			detachInterrupt(isrPin);
 		}
 
-	private:  
+	private:
 
 		#ifdef ESP32
 		static void attachISR_ESP32(void *arg){					//attach ISR in freeRTOS because arduino can't attachInterrupt() inside of template class
@@ -87,18 +90,14 @@ class ZACwire {
 				static unsigned int deltaTime;
 				deltaTime = microtime - deltaTime;			//measure time to previous rising edge
 				if (deltaTime >> 10) {					//start bit
-					byteTime = microtime;				//measuring Tstrobe/bitWindow
-					backUP = !backUP;
+					backUP ^= rawData[backUP] >> 15;
 					bitCounter = heartbeat = 0;			//give a sign of life to getTemp()
 				}
-				else if (bitCounter == 5) rawTemp[backUP] = 2;		//set most significant bit 1, other 0
+				else if (bitCounter == 5) rawData[backUP] = deltaTime<<1 | 2;	//send deltaTime for calculating bitWindow and add prefix "10" to temp
 				else {
-					if (bitCounter == 10) {				//stop bit
-						byteTime = microtime - byteTime;
-						microtime += range/2;			//convert timestamp to normal 0 bit
-					}
-					rawTemp[backUP] <<= 1;
-					rawTemp[backUP] |= deltaTime + (range & -!(rawTemp[backUP] & 2)) < bitWindow;	//add range if previous bit was 1
+					if (bitCounter == 10) microtime += bitWindow>>2;	//convert timestamp at stop bit to normal 0 bit
+					rawData[backUP] <<= 1;
+					rawData[backUP] |= deltaTime + (bitWindow>>1 & -!(rawData[backUP] & 2)) < bitWindow;	//add 1/2 bitWindow if previous bit was 1
 				}
 				deltaTime = microtime;
 			}
@@ -108,26 +107,22 @@ class ZACwire {
 		bool _core;
 		static byte bitWindow;
 		static byte isrPin;
-		static const byte range = 62;
 		static volatile byte bitCounter;
-		static volatile unsigned int byteTime;
 		static volatile bool backUP;
-		static volatile uint16_t rawTemp[2];
+		static volatile uint16_t rawData[2];
 		static volatile byte heartbeat;
 };
 
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
-byte ZACwire<pin>::isrPin;
+byte ZACwire<pin>::isrPin = 255;
 template<uint8_t pin>
 volatile byte ZACwire<pin>::bitCounter;
 template<uint8_t pin>
-volatile unsigned int ZACwire<pin>::byteTime;
-template<uint8_t pin>
 volatile bool ZACwire<pin>::backUP;
 template<uint8_t pin>
-volatile uint16_t ZACwire<pin>::rawTemp[2];
+volatile uint16_t ZACwire<pin>::rawData[2];
 template<uint8_t pin>
 volatile byte ZACwire<pin>::heartbeat;
 
