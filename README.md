@@ -75,9 +75,9 @@ In case of failed readings, there might be some fine-tuning necessary.
 ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, bool core)
 ```
 
-`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but it can vary from sensor to sensor.
-Change this, if some readings of the sensor fail (t = 222°C).
+`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but it varies with temperature.
+Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
 `bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is Core1. Using Core0 might cause some corrupted readings (up to 0.1%), but can be the better option if Core1 is very busy.
  
-If .getTemp() gives you **221** as an output, the library detected an unusual long period without new signals. Please check your cables or try using the RC filter, that is mentioned in the datasheet of the TSic.
+If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the datasheet of the TSic.
