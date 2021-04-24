@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2b5
+	v1.3.2b6
 */
 
 #ifndef ZACwire_h
@@ -32,12 +32,17 @@ class ZACwire {
 			return true;
 		}
 	  
-		float getTemp() {							//give back temperature in °C
-			if (++heartbeat > 3) {						//check wire connection
-				if (isrPin != 255) return 221;				//use isrPin to prove that ISR was already attached
-				begin();
-				delay(110);
+		float getTemp() {							//return temperature in °C
+			static unsigned long lastHB;
+			if (!heartbeat) {						//check wire connection
+				if (isrPin == 255) {					//use isrPin to prove that ISR was already attached
+					begin();
+					delay(110);
+				}
+				if (!lastHB) lastHB = millis();				//record first missing heartbeat
+				else if (millis() - lastHB > 255) return 221;		//return 221 after timeout of 255ms
 			}
+			else lastHB = 0;
 			
 			if (bitCounter > 4 && bitCounter < 11) {			//adjust bitWindow
 				uint16_t newBitWindow = rawData[backUP] >> (bitCounter - 4);	//seperate newBitWindow from temperature bits
@@ -53,16 +58,21 @@ class ZACwire {
 			for (byte i=0; i<9; ++i) parity ^= temp & 1 << i;		//check parity
 			if (parity) for (byte i=10; i<14; ++i) parity ^= temp & 1 << i;
 			
+			
 			if (parity && temp >> 14 == 2 && ~temp & 512) {			//three factor check: parity, prefix "10", stop bit
 				temp >>= 1;						//delete second parity bit
 				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first    "     "
-				useBackup = false;
-				return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
+				static int prevTemp = temp;
+				int grad ((temp - prevTemp) / (heartbeat|1));		//grad is roughly [°C/s]
+				if (abs(grad) < 20) {					//limit change rate to 20°C/s
+					prevTemp = temp;
+					heartbeat = useBackup = 0;
+					return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
+				}
 			}
 			useBackup = !useBackup;						//reset useBackup after use
 			return useBackup ? getTemp(): 222;				//restart with backUP rawData or return error
 		}
-
 
 		void end() {
 			detachInterrupt(isrPin);
@@ -90,8 +100,9 @@ class ZACwire {
 				static unsigned int deltaTime;
 				deltaTime = microtime - deltaTime;			//measure time to previous rising edge
 				if (deltaTime >> 10) {					//start bit
-					backUP ^= rawData[backUP] >> 15;
-					bitCounter = heartbeat = 0;			//give a sign of life to getTemp()
+					backUP ^= bitCounter == 20;
+					bitCounter = 0;
+					++heartbeat;					//give a sign of life to getTemp()
 				}
 				else if (bitCounter == 5) rawData[backUP] = deltaTime<<1 | 2;	//send deltaTime for calculating bitWindow and add prefix "10" to temp
 				else {
