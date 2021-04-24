@@ -39,7 +39,7 @@ class ZACwire {
 					begin();
 					delay(110);
 				}
-				if (!lastHB) lastHB = millis();				//record first missing heartbeat
+				else if (!lastHB) lastHB = millis();			//record first missing heartbeat
 				else if (millis() - lastHB > 255) return 221;		//return 221 after timeout of 255ms
 			}
 			else lastHB = 0;
