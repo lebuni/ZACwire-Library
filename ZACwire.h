@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2b6
+	v1.3.2
 */
 
 #ifndef ZACwire_h
@@ -33,21 +33,22 @@ class ZACwire {
 		}
 	  
 		float getTemp() {							//return temperature in °C
-			static unsigned long lastHB;
+			static unsigned int lastHB;
 			if (!heartbeat) {						//check wire connection
 				if (isrPin == 255) {					//use isrPin to prove that ISR was already attached
 					begin();
 					delay(110);
 				}
 				else if (!lastHB) lastHB = millis();			//record first missing heartbeat
-				else if (millis() - lastHB > 255) return 221;		//return 221 after timeout of 255ms
+				else if ((unsigned int)millis() - lastHB > 255) return 221;	//return 221 after timeout of 255ms
 			}
-			else lastHB = 0;
-			
-			if (bitCounter > 4 && bitCounter < 11) {			//adjust bitWindow
-				uint16_t newBitWindow = rawData[backUP] >> (bitCounter - 4);	//seperate newBitWindow from temperature bits
-				newBitWindow = (((newBitWindow<<1) + newBitWindow) >> 4) + (bitWindow>>2);	//divide by 5.3 and add 1/4 bitWindow
-				bitWindow < newBitWindow ? ++bitWindow : --bitWindow;
+			else {
+				lastHB = 0;
+				if (bitCounter > 4 && bitCounter < 11) {		//adjust bitWindow
+					byte newBitWindow = rawData[backUP] >> (bitCounter - 2);	//seperate newBitWindow from temperature bits and divide by 4
+					newBitWindow = (((newBitWindow>>1) + newBitWindow) >> 1) + 4 + (bitWindow>>2);	//divide by 1.31 (w/ previous line: by 5.25) and add 1/4 bitWindow
+					bitWindow < newBitWindow ? ++bitWindow : --bitWindow;
+				}
 			}
 			
 			static bool useBackup;
@@ -63,7 +64,7 @@ class ZACwire {
 				temp >>= 1;						//delete second parity bit
 				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first    "     "
 				static int prevTemp = temp;
-				int grad ((temp - prevTemp) / (heartbeat|1));		//grad is roughly [°C/s]
+				int grad ((temp - prevTemp) / (heartbeat|1));		//grad is [°C/s]
 				if (abs(grad) < 20) {					//limit change rate to 20°C/s
 					prevTemp = temp;
 					heartbeat = useBackup = 0;
