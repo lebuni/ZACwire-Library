@@ -65,6 +65,12 @@ void loop() {
 
 
 
+## Wiring
+Connect V+ to a power supply with 3.0V to 5.5V. For most accurate results connect it to 5V, because that's the voltage the sensor was calibrated with.
+
+The output of the signal pin switches between GND and V+ to send informations, so take care that your µC is capable of reading both V+ and GND.
+
+![TSIC](https://user-images.githubusercontent.com/62163284/116116897-f5ed5900-a6bb-11eb-95b8-ba8f4ef129cc.png)
 
 
 
