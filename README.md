@@ -86,4 +86,4 @@ Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
 `bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is Core1. Using Core0 might cause some corrupted readings (up to 0.1%), but can be the better option if Core1 is very busy.
  
-If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the datasheet of the TSic.
+If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
