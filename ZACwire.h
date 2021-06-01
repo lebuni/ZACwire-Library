@@ -1,12 +1,17 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.2
+	v1.3.3b2
 */
 
 #ifndef ZACwire_h
 #define ZACwire_h
 
 #include "Arduino.h"
+#include <gpio.h>
+
+#ifdef ARDUINO_ESP8266_RELEASE_
+	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more stability!"
+#endif
 
 template <uint8_t pin>
 class ZACwire {
@@ -22,10 +27,15 @@ class ZACwire {
 		bool begin() {								//start collecting data, needs to be called 100+ms before first getTemp()
 			pinMode(pin, INPUT);
 			if (!pulseInLong(pin, LOW)) return false;			//check if there is incoming signal
-			isrPin = digitalPinToInterrupt(pin);
+			byte isrPin = digitalPinToInterrupt(pin);
 			if (isrPin == 255) return false;
 			#ifdef ESP32
-			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR_ESP32",800,NULL,1,NULL,_core); //freeRTOS
+			const char *pcName = "attachISR_onPin" + isrPin;
+			xTaskCreatePinnedToCore(attachISR_ESP32,pcName,800,NULL,1,NULL,_core); //freeRTOS
+			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
+			ETS_GPIO_INTR_ATTACH(read,NULL);				//...is included, which has issues with IRAM and template classes.
+			gpio_pin_intr_state_set(isrPin,GPIO_PIN_INTR_POSEDGE);		//...That's the reason to use nonOS here
+			ETS_GPIO_INTR_ENABLE();
 			#else
 			attachInterrupt(isrPin, read, RISING);
 			#endif
@@ -35,7 +45,7 @@ class ZACwire {
 		float getTemp() {							//return temperature in °C
 			static unsigned int lastHB;
 			if (!heartbeat) {						//check wire connection
-				if (isrPin == 255) {					//use isrPin to prove that ISR was already attached
+				if (!bitCounter) {					//use bitCounter to prove that ISR was already attached
 					begin();
 					delay(110);
 				}
@@ -65,7 +75,7 @@ class ZACwire {
 				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first    "     "
 				static int prevTemp = temp;
 				int grad ((temp - prevTemp) / (heartbeat|1));		//grad is [°C/s]
-				if (abs(grad) < 20) {					//limit change rate to 20°C/s
+				if (abs(grad) < 20) {					//limit change rate to 20°C/s to detect misreadings
 					prevTemp = temp;
 					heartbeat = useBackup = 0;
 					return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
@@ -76,22 +86,28 @@ class ZACwire {
 		}
 
 		void end() {
-			detachInterrupt(isrPin);
+			detachInterrupt(digitalPinToInterrupt(pin));
 		}
 
 	private:
 
 		#ifdef ESP32
-		static void attachISR_ESP32(void *arg){					//attach ISR in freeRTOS because arduino can't attachInterrupt() inside of template class
-			gpio_pad_select_gpio((gpio_num_t)isrPin);
-			gpio_set_direction((gpio_num_t)isrPin, GPIO_MODE_INPUT);
-			gpio_set_intr_type((gpio_num_t)isrPin, GPIO_INTR_POSEDGE);
+		static void attachISR_ESP32(void*){					//attach ISR in freeRTOS because gcc 5.3+ can't put ISR in IRAM inside of template class
+			gpio_num_t isrPin = (gpio_num_t)pin;
+			gpio_pad_select_gpio(isrPin);
+			//gpio_set_direction(isrPin, GPIO_MODE_INPUT);
+			gpio_set_intr_type(isrPin, GPIO_INTR_POSEDGE);
 			gpio_install_isr_service(0);
-			gpio_isr_handler_add((gpio_num_t)isrPin, read, NULL);
+			gpio_isr_handler_add(isrPin, read, NULL);
 			vTaskDelete(NULL);
 		}
-		static void IRAM_ATTR read(void *arg) {
-		#elif defined(ESP8266)
+		static void IRAM_ATTR read(void*) {
+		#elif defined(ARDUINO_ESP8266_RELEASE_)
+		static void IRAM_ATTR read() {
+			uint16 gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);	//get GPIO that caused the interrupt
+			if (gpio_status != BIT(pin)) return;				//check if the right GPIO triggered
+			GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS,gpio_status);		//clear interrupt flag
+		#elif defined (ESP8266)
 		static void ICACHE_RAM_ATTR read() {
 		#else
 		static void read() {							//get called with every rising edge
@@ -109,7 +125,7 @@ class ZACwire {
 				else {
 					if (bitCounter == 10) microtime += bitWindow>>2;	//convert timestamp at stop bit to normal 0 bit
 					rawData[backUP] <<= 1;
-					rawData[backUP] |= deltaTime + (bitWindow>>1 & -!(rawData[backUP] & 2)) < bitWindow;	//add 1/2 bitWindow if previous bit was 1
+					rawData[backUP] |= bitWindow > deltaTime + (bitWindow>>1 & -!(rawData[backUP] & 2));	//add 1/2 bitWindow if previous bit was 1 (for normalisation)
 				}
 				deltaTime = microtime;
 			}
@@ -118,7 +134,6 @@ class ZACwire {
 		int _sensor;
 		bool _core;
 		static byte bitWindow;
-		static byte isrPin;
 		static volatile byte bitCounter;
 		static volatile bool backUP;
 		static volatile uint16_t rawData[2];
@@ -127,8 +142,6 @@ class ZACwire {
 
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow;
-template<uint8_t pin>
-byte ZACwire<pin>::isrPin = 255;
 template<uint8_t pin>
 volatile byte ZACwire<pin>::bitCounter;
 template<uint8_t pin>
