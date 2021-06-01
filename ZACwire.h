@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.3b2
+	v1.3.3b3
 */
 
 #ifndef ZACwire_h
@@ -30,8 +30,7 @@ class ZACwire {
 			byte isrPin = digitalPinToInterrupt(pin);
 			if (isrPin == 255) return false;
 			#ifdef ESP32
-			const char *pcName = "attachISR_onPin" + isrPin;
-			xTaskCreatePinnedToCore(attachISR_ESP32,pcName,800,NULL,1,NULL,_core); //freeRTOS
+			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR",2000,NULL,1,NULL,_core); //freeRTOS
 			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
 			ETS_GPIO_INTR_ATTACH(read,NULL);				//...is included, which has issues with IRAM and template classes.
 			gpio_pin_intr_state_set(isrPin,GPIO_PIN_INTR_POSEDGE);		//...That's the reason to use nonOS here
@@ -95,7 +94,6 @@ class ZACwire {
 		static void attachISR_ESP32(void*){					//attach ISR in freeRTOS because gcc 5.3+ can't put ISR in IRAM inside of template class
 			gpio_num_t isrPin = (gpio_num_t)pin;
 			gpio_pad_select_gpio(isrPin);
-			//gpio_set_direction(isrPin, GPIO_MODE_INPUT);
 			gpio_set_intr_type(isrPin, GPIO_INTR_POSEDGE);
 			gpio_install_isr_service(0);
 			gpio_isr_handler_add(isrPin, read, NULL);
