@@ -7,9 +7,9 @@
 #define ZACwire_h
 
 #include "Arduino.h"
-#include <gpio.h>
 
 #ifdef ARDUINO_ESP8266_RELEASE_
+	#include <gpio.h>
 	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more stability!"
 #endif
 
