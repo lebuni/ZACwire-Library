@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.3b3
+	v1.3.3b4
 */
 
 #ifndef ZACwire_h
@@ -11,7 +11,9 @@
 #ifdef ARDUINO_ESP8266_RELEASE_
 	#include <gpio.h>
 	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more stability!"
+	void IRAM_ATTR isrHandler(uint8_t arg, void*);
 #endif
+
 
 template <uint8_t pin>
 class ZACwire {
@@ -32,7 +34,7 @@ class ZACwire {
 			#ifdef ESP32
 			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR",2000,NULL,1,NULL,_core); //freeRTOS
 			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
-			ETS_GPIO_INTR_ATTACH(read,NULL);				//...is included, which has issues with IRAM and template classes.
+			ETS_GPIO_INTR_ATTACH(isrHandler,isrPin);			//...is included, which has issues with IRAM and template classes.
 			gpio_pin_intr_state_set(isrPin,GPIO_PIN_INTR_POSEDGE);		//...That's the reason to use nonOS here
 			ETS_GPIO_INTR_ENABLE();
 			#else
@@ -87,6 +89,8 @@ class ZACwire {
 		void end() {
 			detachInterrupt(digitalPinToInterrupt(pin));
 		}
+		
+		friend void isrHandler(uint8_t, void*);
 
 	private:
 
@@ -101,7 +105,7 @@ class ZACwire {
 		}
 		static void IRAM_ATTR read(void*) {
 		#elif defined(ARDUINO_ESP8266_RELEASE_)
-		static void IRAM_ATTR read() {
+		static inline void read() __attribute__((always_inline)) {
 			uint16 gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);	//get GPIO that caused the interrupt
 			if (gpio_status != BIT(pin)) return;				//check if the right GPIO triggered
 			GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS,gpio_status);		//clear interrupt flag
@@ -128,7 +132,7 @@ class ZACwire {
 				deltaTime = microtime;
 			}
 		}
-
+		
 		int _sensor;
 		bool _core;
 		static byte bitWindow;
@@ -148,5 +152,30 @@ template<uint8_t pin>
 volatile uint16_t ZACwire<pin>::rawData[2];
 template<uint8_t pin>
 volatile byte ZACwire<pin>::heartbeat;
+
+#ifdef ARDUINO_ESP8266_RELEASE_
+void isrHandler(uint8_t arg, void*) {
+	switch (arg) {
+		case 2:
+			ZACwire<2>::read();
+			break;
+		case 4:
+			ZACwire<4>::read();
+			break;
+		case 5:
+			ZACwire<5>::read();
+			break;
+		case 12:
+			ZACwire<12>::read();
+			break;
+		case 13:
+			ZACwire<13>::read();
+			break;
+		case 14:
+			ZACwire<14>::read();
+			break;
+	}
+}
+#endif
 
 #endif
