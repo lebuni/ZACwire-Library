@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.3b4
+	v1.3.3b5
 */
 
 #ifndef ZACwire_h
@@ -10,17 +10,19 @@
 
 #ifdef ARDUINO_ESP8266_RELEASE_
 	#include <gpio.h>
-	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more stability!"
-	void IRAM_ATTR isrHandler(uint8_t arg, void*);
+	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more efficient memory usage"
+	void IRAM_ATTR tsicIsrHandler(uint8_t gpio);
 #endif
 
 
 template <uint8_t pin>
 class ZACwire {
-
+	
+	friend void tsicIsrHandler(uint8_t);
+	
 	public:
 
-		ZACwire(int sensor = 306, byte defaultBitWindow = 125, bool core = 1){
+		ZACwire(int sensor = 306, byte defaultBitWindow=125, bool core=1) {
 			_sensor = sensor;
 			bitWindow = defaultBitWindow + (defaultBitWindow>>2);		//expected BitWindow in µs, depends on sensor & temperature
 			_core = core;							//only ESP32: choose cpu0 or cpu1
@@ -34,7 +36,7 @@ class ZACwire {
 			#ifdef ESP32
 			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR",2000,NULL,1,NULL,_core); //freeRTOS
 			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
-			ETS_GPIO_INTR_ATTACH(isrHandler,isrPin);			//...is included, which has issues with IRAM and template classes.
+			ETS_GPIO_INTR_ATTACH(tsicIsrHandler,(intptr_t)isrPin);		//...is included, which has issues with IRAM and template classes.
 			gpio_pin_intr_state_set(isrPin,GPIO_PIN_INTR_POSEDGE);		//...That's the reason to use nonOS here
 			ETS_GPIO_INTR_ENABLE();
 			#else
@@ -51,7 +53,7 @@ class ZACwire {
 					delay(110);
 				}
 				else if (!lastHB) lastHB = millis();			//record first missing heartbeat
-				else if ((unsigned int)millis() - lastHB > 255) return 221;	//return 221 after timeout of 255ms
+				else if ((unsigned int)millis() - lastHB > 255) return 221;	//return error 221 after timeout of 255ms
 			}
 			else {
 				lastHB = 0;
@@ -66,12 +68,7 @@ class ZACwire {
 			if (bitCounter != 19) useBackup = true;				//when newer reading is incomplete
 			uint16_t temp = rawData[backUP^useBackup];			//get rawData from ISR
 			
-			bool parity = true;
-			for (byte i=0; i<9; ++i) parity ^= temp & 1 << i;		//check parity
-			if (parity) for (byte i=10; i<14; ++i) parity ^= temp & 1 << i;
-			
-			
-			if (parity && temp >> 14 == 2 && ~temp & 512) {			//three factor check: parity, prefix "10", stop bit
+			if (tempCheck(temp)) {
 				temp >>= 1;						//delete second parity bit
 				temp = (temp >> 2 & 1792) | (temp & 255);		//delete first    "     "
 				static int prevTemp = temp;
@@ -83,15 +80,13 @@ class ZACwire {
 				}
 			}
 			useBackup = !useBackup;						//reset useBackup after use
-			return useBackup ? getTemp(): 222;				//restart with backUP rawData or return error
+			return useBackup ? getTemp(): 222;				//restart with backUP rawData or return error value 222
 		}
 
 		void end() {
 			detachInterrupt(digitalPinToInterrupt(pin));
 		}
-		
-		friend void isrHandler(uint8_t, void*);
-
+	
 	private:
 
 		#ifdef ESP32
@@ -133,6 +128,16 @@ class ZACwire {
 			}
 		}
 		
+		bool tempCheck(uint16_t &rawTemp) {					
+			if (rawTemp >> 14 == 2 && ~rawTemp & 512) {				//check for prefix "10" and stop bit
+				bool parity = true;
+				for (byte i=0; i<9; ++i) parity ^= rawTemp & 1 << i;
+				if (parity) for (byte i=10; i<14; ++i) parity ^= rawTemp & 1 << i;
+				return parity;
+			}
+			return false;
+		}
+		
 		int _sensor;
 		bool _core;
 		static byte bitWindow;
@@ -154,8 +159,8 @@ template<uint8_t pin>
 volatile byte ZACwire<pin>::heartbeat;
 
 #ifdef ARDUINO_ESP8266_RELEASE_
-void isrHandler(uint8_t arg, void*) {
-	switch (arg) {
+void tsicIsrHandler(uint8_t gpio) {
+	switch (gpio) {
 		case 2:
 			ZACwire<2>::read();
 			break;
