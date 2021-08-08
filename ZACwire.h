@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.3
+	v1.3.4b1
 */
 
 #ifndef ZACwire_h
@@ -8,17 +8,17 @@
 
 #include "Arduino.h"
 
-#ifdef ARDUINO_ESP8266_RELEASE_
+#if defined(ESP8266) && __GNUC__ > 5
 	#include <gpio.h>
-	#warning "Arduino ESP8266 3.0.0 has issues with IRAM. Please downgrade to 2.7.4 for more efficient memory usage"
-	void IRAM_ATTR tsicIsrHandler(uint8_t gpio);
+	#warning "Arduino ESP8266 3.0 has issues with IRAM. Please change to 2.7.4 if running out of RAM"
+	void IRAM_ATTR tsicIsrHandler(void* gpio, void*);
 #endif
 
 
 template <uint8_t pin>
 class ZACwire {
 	
-	friend void tsicIsrHandler(uint8_t);
+	friend void tsicIsrHandler(void*, void*);
 	
 	public:
 
@@ -35,7 +35,7 @@ class ZACwire {
 			if (isrPin == 255) return false;
 			#ifdef ESP32
 			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR",2000,NULL,1,NULL,_core); //freeRTOS
-			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
+			#elif defined(ESP8266) && __GNUC__ > 5				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
 			ETS_GPIO_INTR_ATTACH(tsicIsrHandler,(intptr_t)isrPin);		//...is included, which has issues with IRAM and template classes.
 			gpio_pin_intr_state_set(isrPin,GPIO_PIN_INTR_POSEDGE);		//...That's the reason to use nonOS here
 			ETS_GPIO_INTR_ENABLE();
@@ -99,8 +99,8 @@ class ZACwire {
 			vTaskDelete(NULL);
 		}
 		static void IRAM_ATTR read(void*) {
-		#elif defined(ARDUINO_ESP8266_RELEASE_)
-		static inline void read() __attribute__((always_inline)) {
+		#elif defined(ESP8266) && __GNUC__ > 5
+		static inline void read() __attribute__((always_inline)) {		//inline it in the tsicIsrHandler
 			uint16 gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);	//get GPIO that caused the interrupt
 			if (gpio_status != BIT(pin)) return;				//check if the right GPIO triggered
 			GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS,gpio_status);		//clear interrupt flag
@@ -158,9 +158,10 @@ volatile uint16_t ZACwire<pin>::rawData[2];
 template<uint8_t pin>
 volatile byte ZACwire<pin>::heartbeat;
 
-#ifdef ARDUINO_ESP8266_RELEASE_
-void tsicIsrHandler(uint8_t gpio) {
-	switch (gpio) {
+#if defined(ESP8266) && __GNUC__ > 5
+void tsicIsrHandler(void* gpio, void*) {		//just global functions can be in IRAM
+	
+	switch (*(uint8_t*)gpio) {
 		case 2:
 			ZACwire<2>::read();
 			break;
