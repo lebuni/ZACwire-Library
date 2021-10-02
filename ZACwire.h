@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v1.3.3
+	v1.3.3b2 (based on b1)
 */
 
 #ifndef ZACwire_h
@@ -28,11 +28,16 @@ class ZACwire {
 			_core = core;							//only ESP32: choose cpu0 or cpu1
 		}
 
+		byte getBitWindow() {  //just used for debugging purposes
+			return (bitWindow * 4/5);
+		}
+
 		bool begin() {								//start collecting data, needs to be called 100+ms before first getTemp()
 			pinMode(pin, INPUT);
 			if (!pulseInLong(pin, LOW)) return false;			//check if there is incoming signal
 			byte isrPin = digitalPinToInterrupt(pin);
 			if (isrPin == 255) return false;
+			initialize = true;
 			#ifdef ESP32
 			xTaskCreatePinnedToCore(attachISR_ESP32,"attachISR",2000,NULL,1,NULL,_core); //freeRTOS
 			#elif defined(ARDUINO_ESP8266_RELEASE_)				//In ARDUINO_ESP8266_RELEASE_3.0.0 a new version of gcc with bug 70435
@@ -42,6 +47,8 @@ class ZACwire {
 			#else
 			attachInterrupt(isrPin, read, RISING);
 			#endif
+			delay(100);
+			getTemp();  //call to initially set correct bitwindow
 			return true;
 		}
 	  
@@ -61,6 +68,13 @@ class ZACwire {
 					byte newBitWindow = rawData[backUP] >> (bitCounter - 2);	//seperate newBitWindow from temperature bits and divide by 4
 					newBitWindow = (((newBitWindow>>1) + newBitWindow) >> 1) + 4 + (bitWindow>>2);	//divide by 1.31 (w/ previous line: by 5.25) and add 1/4 bitWindow
 					bitWindow < newBitWindow ? ++bitWindow : --bitWindow;
+
+					if (initialize && !((bitWindow - newBitWindow) >>5)) {      // suppress outlier to be used in initialization
+						bitWindow = newBitWindow;
+					} else if (bitWindow != newBitWindow) {
+						bitWindow < newBitWindow ? ++bitWindow : --bitWindow;
+					}
+					initialize = false;
 				}
 			}
 			
@@ -119,10 +133,11 @@ class ZACwire {
 					++heartbeat;					//give a sign of life to getTemp()
 				}
 				else if (bitCounter == 5) rawData[backUP] = deltaTime<<1 | 2;	//send deltaTime for calculating bitWindow and add prefix "10" to temp
+				else if (initialize && bitCounter == 6) { --bitCounter; } //during initialization wait for getTemp() to set bitWindow
 				else {
 					if (bitCounter == 10) microtime += bitWindow>>2;	//convert timestamp at stop bit to normal 0 bit
 					rawData[backUP] <<= 1;
-					rawData[backUP] |= bitWindow > deltaTime + (bitWindow>>1 & -!(rawData[backUP] & 2));	//add 1/2 bitWindow if previous bit was 1 (for normalisation)
+					rawData[backUP] |= bitWindow - (bitWindow>>3) > deltaTime + (bitWindow>>1 & -!(rawData[backUP] & 2));	//add 1/2 bitWindow if previous bit was 1 (for normalisation)
 				}
 				deltaTime = microtime;
 			}
@@ -140,6 +155,7 @@ class ZACwire {
 		
 		int _sensor;
 		bool _core;
+		static bool initialize;
 		static byte bitWindow;
 		static volatile byte bitCounter;
 		static volatile bool backUP;
@@ -147,6 +163,8 @@ class ZACwire {
 		static volatile byte heartbeat;
 };
 
+template<uint8_t pin>
+bool ZACwire<pin>::initialize;
 template<uint8_t pin>
 byte ZACwire<pin>::bitWindow;
 template<uint8_t pin>
