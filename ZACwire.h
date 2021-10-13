@@ -107,7 +107,6 @@ class ZACwire {
 		static void attachISR_ESP32(void*){					//attach ISR in freeRTOS because gcc 5.3+ can't put ISR in IRAM inside of template class
 			gpio_num_t isrPin = (gpio_num_t)pin;
 			gpio_pad_select_gpio(isrPin);
-			gpio_set_direction((gpio_num_t)isrPin, GPIO_MODE_INPUT);
 			gpio_set_intr_type(isrPin, GPIO_INTR_POSEDGE);
 			gpio_install_isr_service(0);
 			gpio_isr_handler_add(isrPin, read, NULL);
@@ -138,7 +137,8 @@ class ZACwire {
 				else {
 					if (bitCounter == 10) microtime += bitWindow>>2;	//convert timestamp at stop bit to normal 0 bit
 					rawData[backUP] <<= 1;
-					rawData[backUP] |= bitWindow > deltaTime + ((rawData[backUP] & 2)?0:(bitWindow>>1));	//add 1/2 bitWindow if previous bit was 1 (for normalisation)
+					if (rawData[backUP] & 2) deltaTime += bitWindow >> 1;   //add 1/2 bitWindow if previous bit was 1
+					rawData[backUP] |= bitWindow > deltaTime;
 				}
 				deltaTime = microtime;
 			}
