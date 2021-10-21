@@ -12,6 +12,8 @@
 #ifndef ZACwire_h
 #define ZACwire_h
 
+#define ZACWIRE_VERSION 134L
+
 #include "Arduino.h"
 
 #ifdef ARDUINO_ESP8266_RELEASE_
