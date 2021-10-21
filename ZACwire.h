@@ -112,7 +112,6 @@ class ZACwire {
 					heartbeat = useBackup = 0;
 					return (_sensor < 400 ? (temp * 250L >> 8) - 499 : (temp * 175L >> 9) - 99) / 10.0;	//use different formula for 206&306 or 506
 				}
-				return 1000;
 			}
 			useBackup = !useBackup;						//reset useBackup after use
 			return (useBackup && !_directMode) ? getTemp(): 222;				//restart with backUP rawData or return error value 222
