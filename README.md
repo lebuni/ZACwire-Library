@@ -6,9 +6,9 @@
 
 Arduino Library to read the ZACwire protocol, wich is used by TSic temperature sensors 206, 306 and 506 on their signal pin.
 
-`ZACwire<int pin> obj(int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use. Please pay attention that the selected pin supports external interrupts!
+`ZACwire obj(int pin, int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use. Please pay attention that the selected pin supports external interrupts!
 
-`.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
+`.begin(int defaultBitWindow)` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
 
 `.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a failed reading, it returns `222`. In case of no incoming signal it returns `221`.
 
@@ -19,7 +19,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 - saves a lot of controller time, because no delay() is used and calculations are done by bit manipulation
 - low memory consumption
 - misreading rate lower than 0.001%
-- reading an unlimited number of TSic simultaneously
+- reading an unlimited number of TSic simultaneously (except AVR boards)
 - higher accuracy (0.1°C offset corrected)
 - simple use
 
@@ -33,7 +33,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 #include <ZACwire.h>
 
-ZACwire<2> Sensor(306);		// set pin "2" to receive signal from the TSic "306"
+ZACwire Sensor(2, 306);		// set pin "2" to receive signal from the TSic "306"
 
 void setup() {
   Serial.begin(500000);
@@ -77,13 +77,9 @@ The output of the signal pin switches between GND and V+ to send informations, s
 ## Fine-Tuning
 In case of failed readings, there might be some fine-tuning necessary.
 
-```c++
-ZACwire<int pin> obj(int Sensor, byte defaultBitWindow, bool core)
-```
-
-`byte defaultBitWindow` is the expected BitWindow in µs. According to the datasheet it should be around 125µs, but it varies with temperature.
+`uint8_t defaultBitWindow` is the expected BitWindow in µs, which can be passed to .begin(). According to the datasheet it should be around 125µs, but it varies with temperature.
 Change this, if the **first few readings** of the sensor fail (t = 222°C).
 
-`bool core` can only be used on a dual core ESP32. You can decide on which core the ISR should run, default is Core1. Using Core0 might cause some corrupted readings (up to 0.1%), but can be the better option if Core1 is very busy.
- 
-If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e_0.pdf).
+`.initDetectBitwindow()` can be manually called after .begin() to determine the right bitWindow, but the execution time can take more than 100ms. It's optional, as in case of failure the .getTemp() would call it on it's own.
+
+If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
