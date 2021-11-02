@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b2
+	v2.0.0b3
 */
 
 #include "Arduino.h"
@@ -22,12 +22,16 @@ ZACwire::ZACwire(uint8_t inputPin, int16_t sensor) {
 	_pin = inputPin;
 	_sensor = sensor;
 	bitThreshold = defaultBitWindow * 1.25;
+	heartbeat = 1;
+	bitCounter = 0;
 }
 
 
 bool ZACwire::begin(uint8_t customBitWindow) {			//start collecting data, needs to be called 100+ms before first getTemp()
 	pinMode(_pin, INPUT);
+	while (pulseInLong(_pin, LOW, timeout*2)) yield;	//wait for time without transmission
 	if (!pulseInLong(_pin, LOW)) return false;		//check if there is incoming signal
+	measuredTimeDiff = micros();
 	uint8_t isrPin = digitalPinToInterrupt(_pin);
 	if (isrPin == 255) return false;
 	#if defined(ESP32) || defined(ESP8266)
@@ -35,8 +39,9 @@ bool ZACwire::begin(uint8_t customBitWindow) {			//start collecting data, needs 
 	#else
 		attachInterrupt(isrPin, read, RISING);
 	#endif
-	if (!customBitWindow) bitThreshold = initDetectBitThreshold();
-	else bitThreshold = customBitWindow * 1.25;		//expected BitWindow in µs, depends on sensor & temperature
+	if (!customBitWindow) customBitWindow = initDetectBitWindow();
+	Serial.println(customBitWindow);
+	bitThreshold = customBitWindow * 1.25;			//expected BitWindow in µs, depends on sensor & temperature
 	return true;
 }
 
@@ -62,7 +67,7 @@ float ZACwire::getTemp() {					//return temperature in °C
 	}
 	useBackup = !useBackup;					//reset useBackup after use
 	if (millis() < startupTime *60*1000) {
-		bitThreshold = initDetectBitThreshold();	//determine bitwindow in the first minutes of use in case of failure
+		bitThreshold = initDetectBitWindow()*1.25;	//determine bitwindow in the first minutes of use in case of failure
 	}
 	return useBackup ? getTemp() : errorMisreading;		//restart with backUP rawData or return error value 222
 }
@@ -108,7 +113,7 @@ bool ZACwire::connectionCheck() {
 }		
 
 
-uint8_t ZACwire::initDetectBitThreshold() {
+uint8_t ZACwire::initDetectBitWindow() {
 	uint32_t deadline = millis() + timeout;
 	while (bitCounter<Bit::lastZero || bitCounter>Bit::afterStop || !heartbeat) {
 		if (millis() > deadline) break;
@@ -120,10 +125,10 @@ uint8_t ZACwire::initDetectBitThreshold() {
 
 uint8_t ZACwire::adjustBitThreshold() {
 	if (bitCounter >= Bit::lastZero && bitCounter <= Bit::afterStop) {	//adjust bitThreshold just before rawData is filled with temperature
-		uint16_t newBitThreshold = (rawData[backUP] >> (bitCounter - 4));//separate newBitThreshold from temperature bits
-		newBitThreshold *= 1.25 / 5.25;
-		bitThreshold < newBitThreshold ? ++bitThreshold : --bitThreshold;
-		return newBitThreshold;
+		uint16_t newBitWindow = (rawData[backUP] >> (bitCounter - 4));//separate newBitWindow from temperature bits
+		newBitWindow /=  5.25;
+		bitThreshold < newBitWindow*1.25 ? ++bitThreshold : --bitThreshold;
+		return newBitWindow;
 	}
 	return 0;
 }
