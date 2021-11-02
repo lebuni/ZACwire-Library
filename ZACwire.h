@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b2
+	v2.0.0b3
 */
 
 #ifndef ZACwire_h
@@ -10,11 +10,9 @@
 
 #if defined(ESP32) || defined(ESP8266)
 	#define STATIC
-	#define INITNULL {0}
 #else
 	#define IRAM_ATTR
 	#define STATIC static
-	#define INITNULL
 #endif
 
 class ZACwire {
@@ -24,7 +22,9 @@ class ZACwire {
 		bool begin(uint8_t customBitWindow=0);		//start reading
 		
 		float getTemp();				//return temperature in °C
-				
+		
+		uint8_t initDetectBitWindow();			//returns the bitWindow
+		
 		void end();
 		
 	private:
@@ -42,8 +42,6 @@ class ZACwire {
 				
 		bool tempCheck(uint16_t rawTemp);		//validate the received temperature
 
-		uint8_t initDetectBitThreshold();		//detect the bitThreshold
-		
 		uint8_t adjustBitThreshold();			//improve the accuracy of the bitThreshold over time
 
 		uint8_t _pin;
@@ -54,13 +52,12 @@ class ZACwire {
 
 		STATIC uint16_t measuredTimeDiff;		//measured time between rising edges of signal
 		STATIC uint8_t bitThreshold;
-		STATIC volatile uint8_t bitCounter INITNULL;
-		STATIC volatile uint8_t heartbeat INITNULL;
+		STATIC volatile uint8_t bitCounter;
+		STATIC volatile uint8_t heartbeat;
 		STATIC volatile bool backUP;
 		STATIC volatile uint16_t rawData[2];
 };
 
 #undef STATIC
-#undef INITNULL
 
 #endif
