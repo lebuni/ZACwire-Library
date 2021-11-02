@@ -8,7 +8,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 `ZACwire obj(int pin, int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use. Please pay attention that the selected pin supports external interrupts!
 
-`.begin(int defaultBitWindow)` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 120ms before the first .getTemp().
+`.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 2ms before the first .getTemp().
 
 `.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a failed reading, it returns `222`. In case of no incoming signal it returns `221`.
 
@@ -41,7 +41,7 @@ void setup() {
   if (Sensor.begin() == true) {     //check if a sensor is connected to the pin
     Serial.println("Signal found on pin 2");
   }
-  delay(120);
+  delay(2);
 }
 
 void loop() {
@@ -75,11 +75,15 @@ The output of the signal pin switches between GND and V+ to send informations, s
 
 
 ## Fine-Tuning
-In case of failed readings, there might be some fine-tuning necessary.
+Some optional features, that might be interesting for playing around:
 
-`uint8_t defaultBitWindow` is the expected BitWindow in µs, which can be passed to .begin(). According to the datasheet it should be around 125µs, but it varies with temperature.
-Change this, if the **first few readings** of the sensor fail (t = 222°C).
+`uint8_t .initDetectBitwindow()` can be manually called after .begin() to determine the bitWindow, but the execution time can take up to 100ms. It's optional, because it usually gets called in a good (=time saving) moment inside .begin(). The output will be the exact bitWindow, what you can feed into the library as following:
 
-`.initDetectBitwindow()` can be manually called after .begin() to determine the right bitWindow, but the execution time can take more than 100ms. It's optional, as in case of failure the .getTemp() would call it on it's own.
+```c++
+bool .begin(uint8_t defaultBitWindow)
+```
+`uint8_t defaultBitWindow` is the expected bitWindow in µs. According to the datasheet it should be around 125µs, but it varies with temperature.
+
+You can also just always call `.begin(125)` by default to avoid misdetection of the bitWindow and save some microseconds of computing time. But change this value, if the **first few readings** of the sensor fail (t = 222°C), because after some minutes the code will adjust itself automatically to the precise bitWindow.
 
 If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
