@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b3
+	v2.0.0b4
 */
 
 #ifndef ZACwire_h
@@ -23,13 +23,10 @@ class ZACwire {
 		
 		float getTemp();				//return temperature in °C
 		
-		uint8_t initDetectBitWindow();			//returns the bitWindow
-		
 		void end();
 		
 	private:
 		const uint8_t maxChangeRate	{20};		//change in °C/s to detect failure
-		const uint8_t startupTime	{5};		//time in min after start, in where the code is allowed to re-measure the bitwindow
 		const uint8_t timeout		{220};		//timeout in ms to give error 221
 		const uint8_t errorNotConnected	{221};
 		const uint8_t errorMisreading	{222};
@@ -42,7 +39,7 @@ class ZACwire {
 				
 		bool tempCheck(uint16_t rawTemp);		//validate the received temperature
 
-		uint8_t adjustBitThreshold();			//improve the accuracy of the bitThreshold over time
+		void adjustBitThreshold();			//improve the accuracy of the bitThreshold over time
 
 		uint8_t _pin;
 		int16_t _sensor;
