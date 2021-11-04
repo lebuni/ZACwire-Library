@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b4
+	v2.0.0b5
 */
 
 #include "Arduino.h"
@@ -18,16 +18,14 @@
 #endif
 
 
-ZACwire::ZACwire(uint8_t inputPin, int16_t sensor) {
-	_pin = inputPin;
-	_sensor = sensor;
-	bitCounter = 0;			//start the bitCounter with 0
+ZACwire::ZACwire(uint8_t pin, int16_t sensor) : _pin{pin}, _sensor{sensor} {
+	bitCounter = 0;
 }
 
 
 bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be called over 2ms before first getTemp()
 	pinMode(_pin, INPUT);
-	while (pulseIn(_pin, LOW, timeout*2)) yield;		//wait for time without transmission
+	while (pulseIn(_pin, LOW, timeout*2)) yield();		//wait for time without transmission
 	uint8_t strobeTime = pulseIn(_pin, LOW);		//check for signal and measure strobeTime
 	measuredTimeDiff = micros();				//set timestamp of the rising edge for ISR
 	if (!strobeTime) return false;				//check if there is incoming signal
