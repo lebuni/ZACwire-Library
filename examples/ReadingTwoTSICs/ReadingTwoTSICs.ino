@@ -6,9 +6,9 @@
 
 #include <ZACwire.h>
 
-ZACwire<2> Sensor1(306);		// set pin "2" to receive signal from the TSIC "306"
+ZACwire Sensor1(2,306);		// set pin "2" to receive signal from the TSIC "306"
 
-ZACwire<10> Sensor2(506);		// set pin "10" as INPUT to receive signal from the TSIC "506"
+ZACwire Sensor2(10,506);	// set pin "10" as INPUT to receive signal from the TSIC "506"
 
 
 
@@ -16,7 +16,7 @@ void setup() {
   Serial.begin(500000); // set up the serial port
   if (!Sensor1.begin()) Serial.println("No digital pin with signal found for Sensor1");		//.begin() checks for signal and returns false if initializing failed
   if (!Sensor2.begin()) Serial.println("No digital pin with signal found for Sensor2");
-  delay(100);
+  delay(3);
 }
 
 void loop() {
