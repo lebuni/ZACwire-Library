@@ -1,14 +1,12 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b5
+	v2.0.0b6
 */
 
-#include "Arduino.h"
 #include "ZACwire.h"
+#include "Arduino.h"
 
-#if defined(ESP32) || defined(ESP8266)
-	#include <FunctionalInterrupt.h>
-#else								//initialize static variables for AVR boards
+#if !defined(ESP32) && !defined(ESP8266)			//initialize static variables for AVR boards
 	uint8_t ZACwire::bitThreshold;
 	uint16_t ZACwire::measuredTimeDiff;
 	volatile uint8_t ZACwire::bitCounter;
@@ -25,7 +23,7 @@ ZACwire::ZACwire(uint8_t pin, int16_t sensor) : _pin{pin}, _sensor{sensor} {
 
 bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be called over 2ms before first getTemp()
 	pinMode(_pin, INPUT);
-	while (pulseIn(_pin, LOW, timeout*2)) yield();		//wait for time without transmission
+	while (pulseIn(_pin, LOW, 500)) yield();		//wait for time without transmission
 	uint8_t strobeTime = pulseIn(_pin, LOW);		//check for signal and measure strobeTime
 	measuredTimeDiff = micros();				//set timestamp of the rising edge for ISR
 	if (!strobeTime) return false;				//check if there is incoming signal
@@ -35,7 +33,7 @@ bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be 
 	uint8_t isrPin = digitalPinToInterrupt(_pin);
 	if (isrPin == 255) return false;
 	#if defined(ESP32) || defined(ESP8266)
-		attachInterrupt(isrPin, [this]{read();}, RISING);
+		attachInterruptArg(isrPin, isrHandler, this, RISING);
 	#else
 		attachInterrupt(isrPin, read, RISING);
 	#endif
@@ -43,7 +41,7 @@ bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be 
 }
 
 
-float ZACwire::getTemp() {					//return temperature in °C
+float ZACwire::getTemp(uint8_t maxChangeRate, bool useBackup) {			//return temperature in °C
 	if (connectionCheck()) adjustBitThreshold();
 	else return errorNotConnected;
 	
@@ -54,16 +52,15 @@ float ZACwire::getTemp() {					//return temperature in °C
 		temp >>= 1;					//delete second parity bit
 		temp = (temp >> 2 & 1792) | (temp & 255);	//delete first    "     "
 		if (!prevTemp) prevTemp = temp;
-		int16_t grad ((temp - prevTemp) / (heartbeat|1));//grad is [°C/s]
+		int16_t grad = (temp - prevTemp) / (heartbeat|1);//grad is [°C/s]
 		if (abs(grad) < maxChangeRate) {		//limit change rate to detect misreadings
 			prevTemp = temp;
-			heartbeat = useBackup = 0;
-			if (_sensor < 400) return ((temp * 250L >> 8) - 499) / 10.0;	//use different formula for 206&306 or 506
+			heartbeat = 0;
+			if (_sensor < 400) return ((temp * 250L >> 8) - 499) / 10.0; //use different formula for 206&306 or 506
 			else return ((temp * 175L >> 9) - 99) / 10.0;
 		}
 	}
-	useBackup = !useBackup;					//reset useBackup after use
-	return useBackup ? getTemp() : errorMisreading;		//restart with backUP rawData or return error value 222
+	return useBackup ? getTemp(maxChangeRate,!useBackup) : errorMisreading; //restart with backUP rawData or return error value 222
 }
 
 
@@ -72,47 +69,50 @@ void ZACwire::end() {
 }
 
 
+void ZACwire::isrHandler(void* ptr) {
+    static_cast<ZACwire*>(ptr)->read();
+}
+
+
 void ZACwire::read() {						//get called with every rising edge
-	if (++bitCounter >= Bit::lastZero) {			//first 4 bits always =0
-		uint16_t microtime = micros();
-		measuredTimeDiff = microtime - measuredTimeDiff;//measure time to previous rising edge
-		if (measuredTimeDiff >> 10) {			//first start bit, so big time difference
-			backUP ^= bitCounter == 20;		//save backup, if it successfully counted 20 bits
-			bitCounter = 0;
-			++heartbeat;				//give a sign of life to getTemp()
-		}
-		else if (bitCounter == Bit::lastZero) rawData[backUP] = measuredTimeDiff<<1 | 2;//send measuredTimeDiff for calculating bitThreshold and add prefix "10" to temp
-		else {
-			if (bitCounter == Bit::afterStop) microtime += bitThreshold>>2;	//convert timestamp at stop bit to normal 0 bit
-			if (~rawData[backUP] & 1) measuredTimeDiff += bitThreshold>>1;	//add 1/2 bitThreshold if previous bit was 0 (for normalisation)
-			rawData[backUP] <<= 1;
-			rawData[backUP] |= measuredTimeDiff < bitThreshold;
-		}
-		measuredTimeDiff = microtime;
+	if (++bitCounter < Bit::lastZero) return;		//first 4 bits always =0
+	uint16_t microtime = micros();
+	measuredTimeDiff = microtime - measuredTimeDiff;	//measure time to previous rising edge
+	if (measuredTimeDiff >> 10) {				//first start bit, so big time difference
+		if (bitCounter == 20) backUP = !backUP; 	//save backup, if it successfully counted 20 bits
+		bitCounter = 0;
+		++heartbeat;					//give a sign of life to getTemp()
 	}
+	else if (bitCounter == Bit::lastZero)  {
+		rawData[backUP] = measuredTimeDiff<<1 | 2;	//send measuredTimeDiff for calculating bitThreshold and add prefix "10" to temp
+	}
+	else {
+		if (bitCounter == Bit::afterStop) microtime += bitThreshold>>2;	//convert timestamp at stop bit to normal 0 bit
+		if (~rawData[backUP] & 1) measuredTimeDiff += bitThreshold>>1;	//add 1/2 bitThreshold if previous bit was 0 (for normalisation)
+		rawData[backUP] <<= 1;
+		if (measuredTimeDiff < bitThreshold) rawData[backUP] |= 1;
+	}
+	measuredTimeDiff = microtime;
 }
 
 
 bool ZACwire::connectionCheck() {
 	if (heartbeat) timeLastHB = 0;
 	else {
-		if (!bitCounter) {				//use bitCounter to check if begin() was already called
-			begin();
-			delay(200);
-		}
+		if (!bitCounter) begin(), delay(3); 		//use bitCounter to check if begin() was already called
 		else if (!timeLastHB) timeLastHB = millis();	//record first missing heartbeat
-		else if ((uint16_t)millis() - timeLastHB > timeout) return false;
+		else if (millis() - timeLastHB > timeout) return false;
 	}
 	return true;
 }
 
 
 void ZACwire::adjustBitThreshold() {
-	if (bitCounter >= Bit::lastZero && bitCounter <= Bit::afterStop) {	//adjust bitThreshold just before rawData is filled with temperature
-		uint16_t newBitThreshold = (rawData[backUP] >> (bitCounter - 4));//separate newBitThreshold from temperature bits
-		newBitThreshold *=  1.25 / 5.25;
-		bitThreshold < newBitThreshold ? ++bitThreshold : --bitThreshold;
-	}
+	if (bitCounter < Bit::lastZero || bitCounter > Bit::afterStop) return;	//adjust bitThreshold only  before rawData is used for temperature
+	
+	uint16_t newBitThreshold = (rawData[backUP] >> (bitCounter - 4));//separate newBitThreshold from temperature bits
+	newBitThreshold *=  1.25 / 5.25;
+	bitThreshold < newBitThreshold ? ++bitThreshold : --bitThreshold;
 }
 
 
