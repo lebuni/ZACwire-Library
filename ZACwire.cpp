@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b6
+	v2.0.0b7
 */
 
 #include "ZACwire.h"
@@ -18,15 +18,19 @@
 
 ZACwire::ZACwire(uint8_t pin, int16_t sensor) : _pin{pin}, _sensor{sensor} {
 	bitCounter = 0;
+	bitThreshold = 0;
 }
 
 
 bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be called over 2ms before first getTemp()
-	pinMode(_pin, INPUT);
-	while (pulseIn(_pin, LOW, 500)) yield();		//wait for time without transmission
+	pinMode(_pin, INPUT_PULLUP);
+	for (uint8_t i=20; pulseIn(_pin,LOW,500);) {		//wait for time without transmission
+		if (!--i) return false;
+		yield();					
+	}
 	uint8_t strobeTime = pulseIn(_pin, LOW);		//check for signal and measure strobeTime
-	measuredTimeDiff = micros();				//set timestamp of the rising edge for ISR
 	if (!strobeTime) return false;				//check if there is incoming signal
+	measuredTimeDiff = micros();				//set timestamp of the rising edge for ISR
 	if (!bitWindow) bitWindow = strobeTime<<1;
 	bitThreshold = bitWindow * 1.25;			//expected BitWindow in µs, depends on sensor & temperature
 	
@@ -60,7 +64,7 @@ float ZACwire::getTemp(uint8_t maxChangeRate, bool useBackup) {			//return tempe
 			else return ((temp * 175L >> 9) - 99) / 10.0;
 		}
 	}
-	return useBackup ? getTemp(maxChangeRate,!useBackup) : errorMisreading; //restart with backUP rawData or return error value 222
+	return useBackup ? errorMisreading : getTemp(maxChangeRate,!useBackup); //restart with backUP rawData or return error value 222
 }
 
 
@@ -79,9 +83,11 @@ void ZACwire::read() {						//get called with every rising edge
 	uint16_t microtime = micros();
 	measuredTimeDiff = microtime - measuredTimeDiff;	//measure time to previous rising edge
 	if (measuredTimeDiff >> 10) {				//first start bit, so big time difference
-		if (bitCounter == 20) backUP = !backUP; 	//save backup, if it successfully counted 20 bits
+		if (bitCounter == 20) {
+			backUP = !backUP; 			//save backup, if it successfully counted 20 bits
+			++heartbeat;				//give a sign of life to getTemp()
+		}
 		bitCounter = 0;
-		++heartbeat;					//give a sign of life to getTemp()
 	}
 	else if (bitCounter == Bit::lastZero)  {
 		rawData[backUP] = measuredTimeDiff<<1 | 2;	//send measuredTimeDiff for calculating bitThreshold and add prefix "10" to temp
@@ -98,11 +104,12 @@ void ZACwire::read() {						//get called with every rising edge
 
 bool ZACwire::connectionCheck() {
 	if (heartbeat) timeLastHB = 0;
-	else {
-		if (!bitCounter) begin(), delay(3); 		//use bitCounter to check if begin() was already called
-		else if (!timeLastHB) timeLastHB = millis();	//record first missing heartbeat
-		else if (millis() - timeLastHB > timeout) return false;
+	else if (!bitThreshold) {				//use bitThreshold to check if begin() was already called
+		if (begin()) delay(3);
+		else return false;
 	}
+	else if (!timeLastHB) timeLastHB = millis();		//record first missing heartbeat
+	else if (millis() - timeLastHB > timeout) return false;
 	return true;
 }
 
