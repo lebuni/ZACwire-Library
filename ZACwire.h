@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b6
+	v2.0.0b7
 */
 
 #ifndef ZACwire_h
@@ -26,7 +26,7 @@ class ZACwire {
 		void end();
 		
 	private:
-		const uint8_t timeout		{220};		//timeout in ms to give error 221
+		const uint8_t timeout		{100};		//timeout in ms to give error 221
 		const uint8_t errorNotConnected	{221};
 		const uint8_t errorMisreading	{222};
 		enum Bit {lastZero=5, afterStop=10, finished=19};
