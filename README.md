@@ -78,10 +78,10 @@ The output of the signal pin switches between GND and V+ to send informations, s
 Some optional features, that might be interesting for playing around:
 
 ```c++
-bool .begin(uint8_t defaultBitWindow)
+void getTemp(uint8_t maxChangeRate)
 ```
-`uint8_t defaultBitWindow` is the expected bitWindow in µs. According to the datasheet it should be around 125µs, but it varies with temperature.
+`uint8_t maxChangeRate` is measured in °C/s and the default value is 10 °C/s. If you have a very stable system, you can lower that value to help the library detecting outliers. If the maxChangeRate is exceeded, a backup value from 100ms before will be used or error 222 will be returned.
 
-You can call `.begin(125)` by default to avoid misdetection of the bitWindow and save some microseconds of computing time. But change this value, if the **first few readings** of the sensor fail (t = 222°C), because after some minutes the code will adjust itself automatically to the precise bitWindow.
+When your system changes temperature really quickly and due to the exceeded maxChangeRate the output of .getTemp() is 222, feel free to increase the value.
 
 If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
