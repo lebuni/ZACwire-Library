@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b7
+	v2.0.0b8
 */
 
 #include "ZACwire.h"
@@ -22,17 +22,16 @@ ZACwire::ZACwire(uint8_t pin, int16_t sensor) : _pin{pin}, _sensor{sensor} {
 }
 
 
-bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be called over 2ms before first getTemp()
+bool ZACwire::begin() {						//start collecting data, needs to be called over 2ms before first getTemp()
 	pinMode(_pin, INPUT_PULLUP);
 	for (uint8_t i=20; pulseIn(_pin,LOW,500);) {		//wait for time without transmission
 		if (!--i) return false;
 		yield();					
 	}
 	uint8_t strobeTime = pulseIn(_pin, LOW);		//check for signal and measure strobeTime
-	if (!strobeTime) return false;				//check if there is incoming signal
-	measuredTimeDiff = micros();				//set timestamp of the rising edge for ISR
-	if (!bitWindow) bitWindow = strobeTime<<1;
-	bitThreshold = bitWindow * 1.25;			//expected BitWindow in µs, depends on sensor & temperature
+	if (!strobeTime) return false;				//abort if there is no incoming signal
+	measuredTimeDiff = micros();				//set timestamp of first rising edge for ISR
+	bitThreshold = strobeTime * 2.5;
 	
 	uint8_t isrPin = digitalPinToInterrupt(_pin);
 	if (isrPin == 255) return false;
@@ -45,7 +44,7 @@ bool ZACwire::begin(uint8_t bitWindow) {			//start collecting data, needs to be 
 }
 
 
-float ZACwire::getTemp(uint8_t maxChangeRate, bool useBackup) {			//return temperature in °C
+float ZACwire::getTemp(uint8_t maxChangeRate, bool useBackup) {	//return temperature in °C
 	if (connectionCheck()) adjustBitThreshold();
 	else return errorNotConnected;
 	
