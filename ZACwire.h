@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0b7
+	v2.0.0b8
 */
 
 #ifndef ZACwire_h
@@ -19,7 +19,7 @@ class ZACwire {
 	public:
 		explicit ZACwire(uint8_t inputPin, int16_t sensor=306);
 		
-		bool begin(uint8_t customBitWindow=0);		//start reading
+		bool begin();					//start reading
 		
 		float getTemp(uint8_t maxChangeRate=10, bool useBackup=false);	//return temperature in °C
 		
