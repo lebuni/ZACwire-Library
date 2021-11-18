@@ -1,15 +1,15 @@
 #include <ZACwire.h>
 
-ZACwire<14> Sensor(206,130,0);		// set pin "14" to receive signal from the TSic "206" with an expected bitWindow of "130µs". ISR executed on CPU1
+ZACwire Sensor(14,206);		// set pin "14" to receive signal from the TSic "206"
 
 void setup() {
   Serial.begin(500000);
   
-  if (Sensor.begin() == true) {     //check if a sensor is connected to the pin
+  if (Sensor.begin(130) == true) {     //expected bitWindow of 130µs
     Serial.println("Signal found on pin 14");
   }
   else Serial.println("No Signal");
-  delay(120);
+  delay(3);
 }
 
 void loop() {
