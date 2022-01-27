@@ -4,28 +4,15 @@
 [![GitHub license](https://img.shields.io/github/license/lebuni/ZACwire-Library.svg)](https://github.com/lebuni/ZACwire-Library/blob/master/LICENSE)
 
 
-Arduino Library to read the ZACwire protocol, wich is used by TSic temperature sensors 206, 306 and 506 on their signal pin.
+Experimental code to read the raw value of all sensors using the ZACwire protocol, including 14bit data packages.
 
-`ZACwire obj(int pin, int Sensor)` tells the library which input pin of the controller (eg. 2) and type of sensor (eg. 306) it should use. Please pay attention that the selected pin supports external interrupts!
+`ZACwire obj(int pin)` tells the library which input pin of the controller (eg. 2) it should use. Please pay attention that the selected pin supports external interrupts!
 
 `.begin()` returns true if a signal is detected on the specific pin and starts the reading via ISRs. It should be started at least 2ms before the first .getTemp().
 
-`.getTemp()` returns the temperature in °C and gets usually updated every 100ms. In case of a failed reading, it returns `222`. In case of no incoming signal it returns `221`.
+`.getRawVal()` returns the temperature in °C and gets usually updated every 100ms. In case of a failed reading, it returns `222`. In case of no incoming signal it returns `221`.
 
 `.end()` stops the reading for time sensititive tasks, which shouldn't be interrupted.
-
-
-## Benefits compared to former TSic libraries
-- saves a lot of controller time, because no delay() is used and calculations are done by bit manipulation
-- low memory consumption
-- misreading rate lower than 0.001%
-- reading an unlimited number of TSic simultaneously (except AVR boards)
-- higher accuracy (0.1°C offset corrected)
-- simple use
-
-
-
-
 
 
 ## Example
@@ -33,7 +20,7 @@ Arduino Library to read the ZACwire protocol, wich is used by TSic temperature s
 
 #include <ZACwire.h>
 
-ZACwire Sensor(2, 306);		// set pin "2" to receive signal from the TSic "306"
+ZACwire Sensor(2);		// set pin "2" to receive signal
 
 void setup() {
   Serial.begin(500000);
@@ -45,7 +32,7 @@ void setup() {
 }
 
 void loop() {
-  float Input = Sensor.getTemp();     //get the Temperature in °C
+  float Input = Sensor.getRawVal();     //get the raw value
   
   if (Input == 222) {
     Serial.println("Reading failed");
@@ -56,32 +43,12 @@ void loop() {
   }
   
   else {
-    Serial.print("Temp: ");
+    Serial.print("raw value: ");
     Serial.println(Input);
   }
   delay(100);
 }
 ```
-
-
-
-## Wiring
-Connect V+ to a power supply with 3.0V to 5.5V. For most accurate results connect it to 5V, because that's the voltage the sensor was calibrated with.
-
-The output of the signal pin switches between GND and V+ to send informations, so take care that your µC is capable of reading both V+ and GND.
-
-![TSIC](https://user-images.githubusercontent.com/62163284/116116897-f5ed5900-a6bb-11eb-95b8-ba8f4ef129cc.png)
-
-
-
-## Adjustment for fast systems
-
-```c++
-void getTemp(uint8_t maxChangeRate)
-```
-`uint8_t maxChangeRate` is measured in °C/s and the default value is 10 °C/s. If you have a very stable system, you can lower that value to help the library detecting outliers. If the maxChangeRate is exceeded, a backup value from 100ms before will be used or error 222 will be returned.
-
-When your system changes temperature really quickly and due to the exceeded maxChangeRate the output of .getTemp() is 222, feel free to increase the value.
 
 ## Connection check
 If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
