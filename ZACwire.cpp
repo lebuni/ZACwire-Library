@@ -1,6 +1,6 @@
 /*	ZACwire - Library for reading temperature sensors TSIC 206/306/506
 	created by Adrian Immer in 2020
-	v2.0.0
+	14bit_v1.0.0
 */
 
 #include "ZACwire.h"
@@ -16,7 +16,7 @@
 #endif
 
 
-ZACwire::ZACwire(uint8_t pin, int16_t sensor) : _pin{pin}, _sensor{sensor} {
+ZACwire::ZACwire(uint8_t pin) : _pin{pin} {
 	bitCounter = 0;
 	bitThreshold = 0;
 }
@@ -44,26 +44,17 @@ bool ZACwire::begin() {						//start collecting data, needs to be called over 2m
 }
 
 
-float ZACwire::getTemp(uint8_t maxChangeRate, bool useBackup) {	//return temperature in °C
-	if (connectionCheck()) adjustBitThreshold();
-	else return errorNotConnected;
+uint16_t ZACwire::getRawVal(bool useBackup) {	//return temperature in °C
 	
 	if (bitCounter != Bit::finished) useBackup = true;	//when newer reading is incomplete
 	uint16_t temp{rawData[backUP^useBackup]};		//get rawData from ISR
 	
-	if (tempCheck(temp)) {
+	if (parityCheck(temp)) {
 		temp >>= 1;					//delete second parity bit
-		temp = (temp >> 2 & 1792) | (temp & 255);	//delete first    "     "
-		if (!prevTemp) prevTemp = temp;
-		int16_t grad = (temp - prevTemp) / (heartbeat|1);//grad is [°C/s]
-		if (abs(grad) < maxChangeRate) {		//limit change rate to detect misreadings
-			prevTemp = temp;
-			heartbeat = 0;
-			if (_sensor < 400) return ((temp * 250L >> 8) - 499) / 10.0; //use different formula for 206&306 or 506
-			else return ((temp * 175L >> 9) - 99) / 10.0;
-		}
+		temp = (temp >> 1 & 16128) | (temp & 255);	//delete first    "     "
+		return temp;
 	}
-	return useBackup ? errorMisreading : getTemp(maxChangeRate,!useBackup); //restart with backUP rawData or return error value 222
+	return useBackup ? errorMisreading : getRawVal(!useBackup); //restart with backUP rawData or return error value 222
 }
 
 
@@ -89,10 +80,13 @@ void ZACwire::read() {						//get called with every rising edge
 		bitCounter = 0;
 	}
 	else if (bitCounter == Bit::lastZero)  {
-		rawData[backUP] = measuredTimeDiff<<1 | 2;	//send measuredTimeDiff for calculating bitThreshold and add prefix "10" to temp
+		rawData[backUP] = 0;		//send measuredTimeDiff for calculating bitThreshold and add prefix "10" to temp
 	}
 	else {
-		if (bitCounter == Bit::afterStop) microtime += bitThreshold>>2;	//convert timestamp at stop bit to normal 0 bit
+		if (bitCounter == Bit::afterStop) {
+			microtime += bitThreshold>>2;		//convert timestamp at stop bit to normal 0 bit
+			rawData[backUP] >>= 1;			//delete stop bit to make space for 14bit
+		}
 		if (~rawData[backUP] & 1) measuredTimeDiff += bitThreshold>>1;	//add 1/2 bitThreshold if previous bit was 0 (for normalisation)
 		rawData[backUP] <<= 1;
 		if (measuredTimeDiff < bitThreshold) rawData[backUP] |= 1;
@@ -113,20 +107,9 @@ bool ZACwire::connectionCheck() {
 }
 
 
-void ZACwire::adjustBitThreshold() {
-	if (bitCounter < Bit::lastZero || bitCounter > Bit::afterStop) return;	//adjust bitThreshold only  before rawData is used for temperature
-	
-	uint16_t newBitThreshold = (rawData[backUP] >> (bitCounter - 4));//separate newBitThreshold from temperature bits
-	newBitThreshold *=  1.25 / 5.25;
-	bitThreshold < newBitThreshold ? ++bitThreshold : --bitThreshold;
-}
-
-
-bool ZACwire::tempCheck(uint16_t rawTemp) {					
-	if (rawTemp >> 14 != 2 || rawTemp & 512) return false;	//check for prefix "10" and stop bit=0
-	
+bool ZACwire::parityCheck(uint16_t rawVal) {					
 	bool parity{true};
-	for (uint8_t i{0}; i<9; ++i) parity ^= rawTemp & 1 << i;
-	if (parity) for (uint8_t i{10}; i<14; ++i) parity ^= rawTemp & 1 << i;
+	for (uint8_t i{0}; i<9; ++i) parity ^= rawVal & 1 << i;
+	if (parity) for (uint8_t i{10}; i<14; ++i) parity ^= rawVal & 1 << i;
 	return parity;
 }
