@@ -45,6 +45,8 @@ bool ZACwire::begin() {						//start collecting data, needs to be called over 2m
 
 
 uint16_t ZACwire::getRawVal(bool useBackup) {	//return temperature in °C
+
+	if (!connectionCheck()) return errorNotConnected;
 	
 	if (bitCounter != Bit::finished) useBackup = true;	//when newer reading is incomplete
 	uint16_t temp{rawData[backUP^useBackup]};		//get rawData from ISR
@@ -52,6 +54,7 @@ uint16_t ZACwire::getRawVal(bool useBackup) {	//return temperature in °C
 	if (parityCheck(temp)) {
 		temp >>= 1;					//delete second parity bit
 		temp = (temp >> 1 & 16128) | (temp & 255);	//delete first    "     "
+		heartbeat = 0;
 		return temp;
 	}
 	return useBackup ? errorMisreading : getRawVal(!useBackup); //restart with backUP rawData or return error value 222
