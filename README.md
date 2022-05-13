@@ -84,4 +84,4 @@ void getTemp(uint8_t maxChangeRate)
 When your system changes temperature really quickly and due to the exceeded maxChangeRate the output of .getTemp() is 222, feel free to increase the value.
 
 ## Connection check
-If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_e.pdf).
+If .getTemp() gives you **221** as an output, the library detected an unusual long period above 255ms without new signals. Please check your cables or try using the RC filter, that is mentioned in the [application note of the TSic](https://www.ist-ag.com/sites/default/files/attsic_0.pdf).
