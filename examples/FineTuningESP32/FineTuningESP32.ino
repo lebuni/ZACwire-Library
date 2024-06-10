@@ -5,7 +5,7 @@ ZACwire Sensor(14,206);		// set pin "14" to receive signal from the TSic "206"
 void setup() {
   Serial.begin(500000);
   
-  if (Sensor.begin(130) == true) {     //expected bitWindow of 130µs
+  if (Sensor.begin() == true) {     //expected bitWindow of 130µs
     Serial.println("Signal found on pin 14");
   }
   else Serial.println("No Signal");
